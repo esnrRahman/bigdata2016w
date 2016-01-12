@@ -1,23 +1,27 @@
-Question 1 Answer:
+<h1>Question 1.</h1>
 
-to	23826
-an	32003
-th	83289
+<ol>
+<li>th	83289</li>
+<li>an	32003</li>
+<li>to	23826</li>
+</ol>
 
-Question 2 Answer:
+<h1>Question 2.</h1>
 
-li      6532
+<p>li      6532</p>
 
-Question 3 Answer:
+<h1>Question 3.</h1>
 
-Awww yisss
+<p>Yes</p>
 
-Question 4 answer:
+<h1>Question 4.</h1>
 
-n	7399686
-in	8165787
-th	18487894
+<ol>
+<li>th	18487894</li>
+<li>in	8165787</li>
+<li>an	7399686</li>
+</ol>
 
-Question 5 answer:
+<h1>Question 5.</h1>
 
-li	1303312
+<p>li	1303312</p>
