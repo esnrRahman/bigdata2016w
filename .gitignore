@@ -4,3 +4,8 @@ cs489-2016w-esnrRahman-a0-shakespeare/
 data/
 target/
 wc/
+
+
+# Android Studio BS
+.idea/
+src/main/main.iml
