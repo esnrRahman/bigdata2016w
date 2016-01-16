@@ -35,9 +35,6 @@ import org.kohsuke.args4j.ParserProperties;
 
 import tl.lin.data.pair.PairOfStrings;
 
-/**
- * Simple word count demo.
- */
 public class PairsPMI extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(PairsPMI.class);
 
@@ -53,6 +50,10 @@ public class PairsPMI extends Configured implements Tool {
                 throws IOException, InterruptedException {
             String line = ((Text) value).toString();
 
+            // Count # of lines
+            PAIR.set("*", "*");
+            context.write(PAIR, ONE);
+
             List<String> tokens = new ArrayList<String>();
             StringTokenizer itr = new StringTokenizer(line);
 
@@ -62,16 +63,22 @@ public class PairsPMI extends Configured implements Tool {
                 if (w.length() == 0) continue;
                 tokens.add(w);
 
+                // Do a word count
+                PAIR.set(w, "*");
+                context.write(PAIR, ONE);
+
                 // Consider up to the first 100 words in each line
                 if (cnt >= 100) break;
             }
 
+            // Do co-occurrence pair count
             for (int i = 0; i < tokens.size(); i++) {
                 for (int j = Math.max(i - window, 0); j < Math.min(i + window + 1, tokens.size()); j++) {
                     if (i == j) continue;
                     PAIR.set(tokens.get(i), tokens.get(j));
                     context.write(PAIR, ONE);
                 }
+
             }
         }
     }
