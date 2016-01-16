@@ -141,11 +141,10 @@ public class PairsPMI extends Configured implements Tool {
         FileInputFormat.setInputPaths(job, new Path(args.input));
         FileOutputFormat.setOutputPath(job, new Path(args.output));
 
-        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputKeyClass(PairOfStrings.class);
         job.setMapOutputValueClass(IntWritable.class);
-        job.setOutputKeyClass(Text.class);
+        job.setOutputKeyClass(PairOfStrings.class);
         job.setOutputValueClass(IntWritable.class);
-        job.setOutputFormatClass(TextOutputFormat.class);
 
         job.setMapperClass(MyMapper.class);
         job.setReducerClass(MyReducer.class);
