@@ -320,6 +320,13 @@ public class PairsPMI extends Configured implements Tool {
         secondJob.setJobName(PairsPMI.class.getSimpleName());
         secondJob.setJarByClass(PairsPMI.class);
 
+        // Increase memory because assignment told me to do
+        secondJob.getConfiguration().setInt("mapred.max.split.size", 1024 * 1024 * 64);
+        secondJob.getConfiguration().set("mapreduce.map.memory.mb", "3072");
+        secondJob.getConfiguration().set("mapreduce.map.java.opts", "-Xmx3072m");
+        secondJob.getConfiguration().set("mapreduce.reduce.memory.mb", "3072");
+        secondJob.getConfiguration().set("mapreduce.reduce.java.opts", "-Xmx3072m");
+
         secondJob.setNumReduceTasks(args.numReducers);
 
         FileInputFormat.setInputPaths(secondJob, new Path(args.input));
