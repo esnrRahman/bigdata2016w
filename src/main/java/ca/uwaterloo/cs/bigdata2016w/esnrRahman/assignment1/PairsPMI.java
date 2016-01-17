@@ -188,7 +188,7 @@ public class PairsPMI extends Configured implements Tool {
         public void setup(Context context) throws IOException {
             Path pt = new Path(SIDE_DATA_PATH + "/part-r-00000");
             FileSystem fs = FileSystem.get(new Configuration());
-            BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
+            BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt), "UTF-8"));
             String line;
             line = br.readLine();
             String w;
