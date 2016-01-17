@@ -64,6 +64,7 @@ public class PairsPMI extends Configured implements Tool {
             int cnt = 0;
             Set set = Sets.newHashSet();
             while (itr.hasMoreTokens()) {
+                cnt++;
                 String w = itr.nextToken().toLowerCase().replaceAll("(^[^a-z]+|[^a-z]+$)", "");
                 if (w.length() == 0) continue;
 
@@ -76,6 +77,23 @@ public class PairsPMI extends Configured implements Tool {
                 // Consider up to the first 100 words in each line
                 if (cnt >= 100) break;
             }
+        }
+    }
+
+    protected static class FirstJobCombiner extends
+            Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
+        private static final IntWritable SUM = new IntWritable();
+
+        @Override
+        public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
+                throws IOException, InterruptedException {
+            int sum = 0;
+            Iterator<IntWritable> iter = values.iterator();
+            while (iter.hasNext()) {
+                sum += iter.next().get();
+            }
+            SUM.set(sum);
+            context.write(key, SUM);
         }
     }
 
@@ -113,25 +131,44 @@ public class PairsPMI extends Configured implements Tool {
             StringTokenizer itr = new StringTokenizer(line);
 
             int cnt = 0;
+
+            ArrayList<String> set= new ArrayList<String>();
+
             while (itr.hasMoreTokens()) {
+                cnt++;
                 String w = itr.nextToken().toLowerCase().replaceAll("(^[^a-z]+|[^a-z]+$)", "");
                 if (w.length() == 0) continue;
+                if(set.contains(w)) continue;
                 tokens.add(w);
+                set.add(w);
 
                 // Consider up to the first 100 words in each line
                 if (cnt >= 100) break;
             }
 
             // Do co-occurrence pair count
-            for (int i = 0; i < tokens.size(); i++) {
-                for (int j = Math.max(i - window, 0); j < Math.min(i + window + 1, tokens.size()); j++) {
-                    if (i == j) continue;
-                    PAIR.set(tokens.get(i), tokens.get(j));
+//            for (int i = 0; i < tokens.size(); i++) {
+//                for (int j = Math.max(i - window, 0); j < Math.min(i + window + 1, tokens.size()); j++) {
+//                    if (i == j) continue;
+//                    PAIR.set(tokens.get(i), tokens.get(j));
+//                    context.write(PAIR, ONE);
+//                }
+//            }
+            for(int i = 0; i < set.size(); i++) {
+                for(int j = 0; j < set.size(); j++) {
+
+                    String leftPair = set.get(i);
+                    String rightPair = set.get(j);
+                    if (leftPair.equals(rightPair)) continue;
+                    PAIR.set(leftPair,rightPair);
                     context.write(PAIR, ONE);
                 }
             }
         }
     }
+
+
+
 
     private static class SecondJobReducer extends
             Reducer<PairOfStrings, IntWritable, PairOfStrings, DoubleWritable> {
@@ -260,6 +297,7 @@ public class PairsPMI extends Configured implements Tool {
         firstJob.setOutputValueClass(IntWritable.class);
 
         firstJob.setMapperClass(FirstJobMapper.class);
+        firstJob.setCombinerClass(FirstJobCombiner.class);
         firstJob.setReducerClass(FirstJobReducer.class);
 
         // Delete the output directory if it exists already.
