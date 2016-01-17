@@ -34,6 +34,7 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
 
+import tl.lin.data.map.HMapStIW;
 import tl.lin.data.pair.PairOfStrings;
 
 public class StripesPMI extends Configured implements Tool {
@@ -115,10 +116,10 @@ public class StripesPMI extends Configured implements Tool {
     }
 
     // Mapper: emits (pair, 1) for every co-occurrence pair
-    private static class SecondJobMapper extends Mapper<LongWritable, Text, PairOfStrings, IntWritable> {
+    private static class SecondJobMapper extends Mapper<LongWritable, Text, Text, HMapStIW> {
         // Reuse objects to save overhead of object creation.
-        private static final PairOfStrings PAIR = new PairOfStrings();
-        private static final IntWritable ONE = new IntWritable(1);
+        private static final Text KEY = new Text();
+        private static final HMapStIW MAP = new HMapStIW();
 
         @Override
         public void map(LongWritable key, Text value, Context context)
@@ -146,38 +147,23 @@ public class StripesPMI extends Configured implements Tool {
 
             // Find the co-occurring words
             for(int i = 0; i < set.size(); i++) {
+                MAP.clear();
+                String leftWord = set.get(i);
                 for(int j = 0; j < set.size(); j++) {
 
-                    String leftWord = set.get(i);
                     String rightWord = set.get(j);
                     if (leftWord.equals(rightWord)) continue;
-                    PAIR.set(leftWord, rightWord);
-                    context.write(PAIR, ONE);
+                    MAP.increment(set.get(j));
+
                 }
+                KEY.set(leftWord);
+                context.write(KEY, MAP);
             }
         }
     }
-
-    protected static class SecondJobCombiner extends
-            Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
-        private static final IntWritable SUM = new IntWritable();
-
-        @Override
-        public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
-                throws IOException, InterruptedException {
-            int sum = 0;
-            Iterator<IntWritable> iter = values.iterator();
-            while (iter.hasNext()) {
-                sum += iter.next().get();
-            }
-            SUM.set(sum);
-            context.write(key, SUM);
-        }
-    }
-
 
     private static class SecondJobReducer extends
-            Reducer<PairOfStrings, IntWritable, PairOfStrings, DoubleWritable> {
+            Reducer<Text, HMapStIW, PairOfStrings, DoubleWritable> {
         private final static DoubleWritable PMI = new DoubleWritable();
         private static Map<String, Integer> WordOccurrences = new HashMap<String, Integer>();
 
@@ -226,13 +212,17 @@ public class StripesPMI extends Configured implements Tool {
 
 
         @Override
-        public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
+        public void reduce(PairOfStrings key, Iterable<HMapStIW> values, Context context)
                 throws IOException, InterruptedException {
-            Iterator<IntWritable> iter = values.iterator();
-            int sum = 0;
+            Iterator<HMapStIW> iter = values.iterator();
+            HMapStIW map = new HMapStIW();
+
             while (iter.hasNext()) {
-                sum += iter.next().get();
+                map.plus(iter.next());
             }
+
+            // iterate through the map here
+
             if (sum >= 10) {
                 // Pmi calculation
                 double numberOfLines = WordOccurrences.get(TOTAL_NUMBER_OF_LINES);
@@ -324,13 +314,13 @@ public class StripesPMI extends Configured implements Tool {
         FileInputFormat.setInputPaths(secondJob, new Path(args.input));
         FileOutputFormat.setOutputPath(secondJob, new Path(args.output));
 
-        secondJob.setMapOutputKeyClass(PairOfStrings.class);
-        secondJob.setMapOutputValueClass(IntWritable.class);
+        secondJob.setMapOutputKeyClass(Text.class);
+        secondJob.setMapOutputValueClass(HMapStIW.class);
         secondJob.setOutputKeyClass(PairOfStrings.class);
         secondJob.setOutputValueClass(DoubleWritable.class);
 
         secondJob.setMapperClass(SecondJobMapper.class);
-        secondJob.setCombinerClass(SecondJobCombiner.class);
+        secondJob.setCombinerClass(SecondJobReducer.class);
         secondJob.setReducerClass(SecondJobReducer.class);
 
         // Delete the output directory if it exists already.
