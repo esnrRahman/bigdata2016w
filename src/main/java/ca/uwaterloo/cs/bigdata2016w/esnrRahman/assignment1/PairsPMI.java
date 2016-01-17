@@ -120,7 +120,6 @@ public class PairsPMI extends Configured implements Tool {
         // Reuse objects to save overhead of object creation.
         private static final PairOfStrings PAIR = new PairOfStrings();
         private static final IntWritable ONE = new IntWritable(1);
-        private int window = 2;
 
         @Override
         public void map(LongWritable key, Text value, Context context)
@@ -146,28 +145,36 @@ public class PairsPMI extends Configured implements Tool {
                 if (cnt >= 100) break;
             }
 
-            // Do co-occurrence pair count
-//            for (int i = 0; i < tokens.size(); i++) {
-//                for (int j = Math.max(i - window, 0); j < Math.min(i + window + 1, tokens.size()); j++) {
-//                    if (i == j) continue;
-//                    PAIR.set(tokens.get(i), tokens.get(j));
-//                    context.write(PAIR, ONE);
-//                }
-//            }
+            // Find the co-occurring words
             for(int i = 0; i < set.size(); i++) {
                 for(int j = 0; j < set.size(); j++) {
 
-                    String leftPair = set.get(i);
-                    String rightPair = set.get(j);
-                    if (leftPair.equals(rightPair)) continue;
-                    PAIR.set(leftPair,rightPair);
+                    String leftWord = set.get(i);
+                    String rightWord = set.get(j);
+                    if (leftWord.equals(rightWord)) continue;
+                    PAIR.set(leftWord, rightWord);
                     context.write(PAIR, ONE);
                 }
             }
         }
     }
 
+    protected static class SecondJobCombiner extends
+            Reducer<PairOfStrings, IntWritable, PairOfStrings, IntWritable> {
+        private static final IntWritable SUM = new IntWritable();
 
+        @Override
+        public void reduce(PairOfStrings key, Iterable<IntWritable> values, Context context)
+                throws IOException, InterruptedException {
+            int sum = 0;
+            Iterator<IntWritable> iter = values.iterator();
+            while (iter.hasNext()) {
+                sum += iter.next().get();
+            }
+            SUM.set(sum);
+            context.write(key, SUM);
+        }
+    }
 
 
     private static class SecondJobReducer extends
@@ -324,6 +331,7 @@ public class PairsPMI extends Configured implements Tool {
         secondJob.setOutputValueClass(DoubleWritable.class);
 
         secondJob.setMapperClass(SecondJobMapper.class);
+        secondJob.setCombinerClass(SecondJobCombiner.class);
         secondJob.setReducerClass(SecondJobReducer.class);
 
         // Delete the output directory if it exists already.
