@@ -2,9 +2,7 @@ package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment1;
 
 import com.google.common.collect.Sets;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -20,12 +18,14 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -34,7 +34,8 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
 
-import tl.lin.data.map.HMapStIW;
+import tl.lin.data.map.HMapStFW;
+import tl.lin.data.map.MapKF;
 import tl.lin.data.pair.PairOfStrings;
 
 public class StripesPMI extends Configured implements Tool {
@@ -116,10 +117,10 @@ public class StripesPMI extends Configured implements Tool {
     }
 
     // Mapper: emits (pair, 1) for every co-occurrence pair
-    private static class SecondJobMapper extends Mapper<LongWritable, Text, Text, HMapStIW> {
+    private static class SecondJobMapper extends Mapper<LongWritable, Text, Text, HMapStFW> {
         // Reuse objects to save overhead of object creation.
         private static final Text KEY = new Text();
-        private static final HMapStIW MAP = new HMapStIW();
+        private static final HMapStFW MAP = new HMapStFW();
 
         @Override
         public void map(LongWritable key, Text value, Context context)
@@ -162,78 +163,76 @@ public class StripesPMI extends Configured implements Tool {
         }
     }
 
-    private static class SecondJobReducer extends
-            Reducer<Text, HMapStIW, PairOfStrings, DoubleWritable> {
-        private final static DoubleWritable PMI = new DoubleWritable();
-        private static Map<String, Integer> WordOccurrences = new HashMap<String, Integer>();
-
-        // NOTE: Took reference from the link below to read file from HDFS -
-        // http://stackoverflow.com/questions/26209773/hadoop-map-reduce-read-a-text-file
+    private static class SecondJobCombiner extends Reducer<Text, HMapStFW, Text, HMapStFW> {
         @Override
-        public void setup(Context context) throws IOException {
-            Path pt = new Path(SIDE_DATA_PATH + "/part-r-00000");
-            FileSystem fs = FileSystem.get(new Configuration());
-            BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt)));
-            String line;
-            line = br.readLine();
-            String w;
-            String stringKey = "";
-            String integerStrValue;
-            int integerValue = -1;
-            while (line != null) {
-                StringTokenizer itr = new StringTokenizer(line);
-                int i = 0;
-                while (itr.hasMoreTokens()) {
-                    w = itr.nextToken().toLowerCase();
-                    switch(i) {
-                        case 0:
-                            w = w.replace("(", "");
-                            stringKey = w.replace(",", "");
-                            break;
-                        case 1:
-                            break;
-                        case 2:
-                            integerStrValue = w.replace(",", "");
-                            integerValue = Integer.parseInt(integerStrValue);
-                            break;
-                        default:
-                            break;
-                    }
-                    i++;
-                }
-                if (stringKey.equals("*")) {
-                    WordOccurrences.put(TOTAL_NUMBER_OF_LINES, integerValue);
-                } else {
-                    WordOccurrences.put(stringKey, integerValue);
-                }
-                line = br.readLine();
-            }
-        }
-
-
-        @Override
-        public void reduce(PairOfStrings key, Iterable<HMapStIW> values, Context context)
+        public void reduce(Text key, Iterable<HMapStFW> values, Context context)
                 throws IOException, InterruptedException {
-            Iterator<HMapStIW> iter = values.iterator();
-            HMapStIW map = new HMapStIW();
+            Iterator<HMapStFW> iter = values.iterator();
+
+            HMapStFW map = new HMapStFW();
 
             while (iter.hasNext()) {
                 map.plus(iter.next());
             }
 
-            // iterate through the map here
+            context.write(key, map);
+        }
+    }
 
-            if (sum >= 10) {
-                // Pmi calculation
-                double numberOfLines = WordOccurrences.get(TOTAL_NUMBER_OF_LINES);
-                double XOccurrences = WordOccurrences.get(key.getLeftElement());
-                double YOccurrences = WordOccurrences.get(key.getRightElement());
-                double Pmi = Math.log10((sum * numberOfLines) / (XOccurrences * YOccurrences));
 
-                PMI.set(Pmi);
-                context.write(key, PMI);
+    private static class SecondJobReducer extends
+            Reducer<Text, HMapStFW, Text, HMapStFW> {
+        private final static DoubleWritable PMI = new DoubleWritable();
+        private static Map<String, Integer> WordOccurrences = new HashMap<String, Integer>();
+
+        // NOTE: Took reference from the link below to read file from HDFS -
+        // http://stackoverflow.com/questions/26209773/hadoop-map-reduce-read-a-text-file
+        // This did not work, so asked a friend and he suggested SequenceFile
+        @Override
+        public void setup(Context context) throws IOException {
+            Path pt = new Path(SIDE_DATA_PATH + "/part-r-00000");
+            PairOfStrings key = new PairOfStrings();
+            IntWritable val = new IntWritable();
+            SequenceFile.Reader sequenceFileReader = new SequenceFile.Reader(context.getConfiguration(), SequenceFile.Reader.file(pt));
+
+            while (sequenceFileReader.next(key, val)) {
+                String leftWord = key.getLeftElement();
+                int occurrenceCount = Integer.parseInt(val.toString());
+                if (leftWord.equals("*")) {
+                    WordOccurrences.put(TOTAL_NUMBER_OF_LINES, occurrenceCount);
+                } else {
+                    WordOccurrences.put(leftWord, occurrenceCount);
+                }
+            }
+        }
+
+
+        @Override
+        public void reduce(Text key, Iterable<HMapStFW> values, Context context)
+                throws IOException, InterruptedException {
+
+            Iterator<HMapStFW> iter = values.iterator();
+            HMapStFW map = new HMapStFW();
+
+            while (iter.hasNext()) {
+                map.plus(iter.next());
             }
 
+            float sum = 0.0f;
+            double numberOfLines = WordOccurrences.get(TOTAL_NUMBER_OF_LINES);
+
+            // Number of times (a, *) occurs. But this is not necessary as it is done in word occurrences
+//            for (MapKF.Entry<String> entry : map.entrySet()) {
+//                sum += entry.getValue();
+//            }
+
+            for (String term : map.keySet()) {
+                float XOccurrences = WordOccurrences.get(key);
+                float YOccurrences = WordOccurrences.get(term);
+                float Pmi = (float) Math.log10((map.get(term) * numberOfLines) / (XOccurrences * YOccurrences));
+                map.put(term, Pmi);
+            }
+            context.write(key, map);
         }
     }
 
@@ -291,6 +290,7 @@ public class StripesPMI extends Configured implements Tool {
         firstJob.setMapOutputValueClass(IntWritable.class);
         firstJob.setOutputKeyClass(PairOfStrings.class);
         firstJob.setOutputValueClass(IntWritable.class);
+        firstJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         firstJob.setMapperClass(FirstJobMapper.class);
         firstJob.setCombinerClass(FirstJobCombiner.class);
@@ -309,18 +309,25 @@ public class StripesPMI extends Configured implements Tool {
         secondJob.setJobName(StripesPMI.class.getSimpleName());
         secondJob.setJarByClass(StripesPMI.class);
 
+        // Increase memory because assignment told me to do
+        secondJob.getConfiguration().setInt("mapred.max.split.size", 1024 * 1024 * 64);
+        secondJob.getConfiguration().set("mapreduce.map.memory.mb", "3072");
+        secondJob.getConfiguration().set("mapreduce.map.java.opts", "-Xmx3072m");
+        secondJob.getConfiguration().set("mapreduce.reduce.memory.mb", "3072");
+        secondJob.getConfiguration().set("mapreduce.reduce.java.opts", "-Xmx3072m");
+
         secondJob.setNumReduceTasks(args.numReducers);
 
         FileInputFormat.setInputPaths(secondJob, new Path(args.input));
         FileOutputFormat.setOutputPath(secondJob, new Path(args.output));
 
         secondJob.setMapOutputKeyClass(Text.class);
-        secondJob.setMapOutputValueClass(HMapStIW.class);
-        secondJob.setOutputKeyClass(PairOfStrings.class);
-        secondJob.setOutputValueClass(DoubleWritable.class);
+        secondJob.setMapOutputValueClass(HMapStFW.class);
+        secondJob.setOutputKeyClass(Text.class);
+        secondJob.setOutputValueClass(HMapStFW.class);
 
         secondJob.setMapperClass(SecondJobMapper.class);
-        secondJob.setCombinerClass(SecondJobReducer.class);
+        secondJob.setCombinerClass(SecondJobCombiner.class);
         secondJob.setReducerClass(SecondJobReducer.class);
 
         // Delete the output directory if it exists already.
