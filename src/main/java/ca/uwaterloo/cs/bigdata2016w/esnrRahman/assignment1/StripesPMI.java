@@ -35,7 +35,6 @@ import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
 
 import tl.lin.data.map.HMapStFW;
-import tl.lin.data.map.MapKF;
 import tl.lin.data.pair.PairOfStrings;
 
 public class StripesPMI extends Configured implements Tool {
@@ -183,7 +182,7 @@ public class StripesPMI extends Configured implements Tool {
     private static class SecondJobReducer extends
             Reducer<Text, HMapStFW, Text, HMapStFW> {
         private final static DoubleWritable PMI = new DoubleWritable();
-        private static Map<String, Integer> WordOccurrences = new HashMap<String, Integer>();
+        private static Map<String, Float> WordOccurrences = new HashMap<String, Float>();
 
         // NOTE: Took reference from the link below to read file from HDFS -
         // http://stackoverflow.com/questions/26209773/hadoop-map-reduce-read-a-text-file
@@ -197,7 +196,7 @@ public class StripesPMI extends Configured implements Tool {
 
             while (sequenceFileReader.next(key, val)) {
                 String leftWord = key.getLeftElement();
-                int occurrenceCount = Integer.parseInt(val.toString());
+                float occurrenceCount = Float.parseFloat(val.toString());
                 if (leftWord.equals("*")) {
                     WordOccurrences.put(TOTAL_NUMBER_OF_LINES, occurrenceCount);
                 } else {
@@ -213,26 +212,53 @@ public class StripesPMI extends Configured implements Tool {
 
             Iterator<HMapStFW> iter = values.iterator();
             HMapStFW map = new HMapStFW();
+            HMapStFW filteredMap = new HMapStFW();
+
 
             while (iter.hasNext()) {
                 map.plus(iter.next());
             }
 
-            float sum = 0.0f;
+            for (String term : map.keySet()) {
+                float cooccurrenceNumber = map.get(term);
+                if (cooccurrenceNumber >= 10) {
+                    filteredMap.put(term, cooccurrenceNumber);
+                }
+            }
+
             double numberOfLines = WordOccurrences.get(TOTAL_NUMBER_OF_LINES);
+
+//            for (String term : map.keySet()) {
+//                float cooccurrenceNumber = map.get(term);
+//                if (cooccurrenceNumber < 10) {
+//                    map.remove(term);
+//                }
+//            }
+//            int i = 0;
+//            for (String key1 : WordOccurrences.keySet()) {
+//                i++;
+//                LOG.info("The key is -> " + key1 + " and the value is -> " + WordOccurrences.get(key1));
+//                LOG.info("The reduce key is -> " + key + " and the occurrence count is -> " + WordOccurrences.get(key.toString()));
+//
+//                if (i == 10) break;
+//            }
 
             // Number of times (a, *) occurs. But this is not necessary as it is done in word occurrences
 //            for (MapKF.Entry<String> entry : map.entrySet()) {
 //                sum += entry.getValue();
 //            }
 
-            for (String term : map.keySet()) {
-                float XOccurrences = WordOccurrences.get(key);
+            for (String term : filteredMap.keySet()) {
+                float cooccurrenceNumber = map.get(term);
+                float XOccurrences = WordOccurrences.get(key.toString());
                 float YOccurrences = WordOccurrences.get(term);
-                float Pmi = (float) Math.log10((map.get(term) * numberOfLines) / (XOccurrences * YOccurrences));
-                map.put(term, Pmi);
+                float Pmi = (float) Math.log10((filteredMap.get(term) * numberOfLines) / (XOccurrences * YOccurrences));
+                filteredMap.put(term, Pmi);
+
             }
-            context.write(key, map);
+            if (!filteredMap.isEmpty()) {
+                context.write(key, filteredMap);
+            }
         }
     }
 
