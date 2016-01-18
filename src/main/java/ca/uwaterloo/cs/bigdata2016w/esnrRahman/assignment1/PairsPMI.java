@@ -2,9 +2,7 @@ package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment1;
 
 import com.google.common.collect.Sets;
 
-import java.io.BufferedReader;
 import java.io.IOException;
-import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -20,12 +18,14 @@ import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.DoubleWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.SequenceFile;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -187,41 +187,51 @@ public class PairsPMI extends Configured implements Tool {
         @Override
         public void setup(Context context) throws IOException {
             Path pt = new Path(SIDE_DATA_PATH + "/part-r-00000");
-            FileSystem fs = FileSystem.get(new Configuration());
-            BufferedReader br = new BufferedReader(new InputStreamReader(fs.open(pt), "UTF-8"));
-            String line;
-            line = br.readLine();
-            String w;
-            String stringKey = "";
-            String integerStrValue;
-            int integerValue = -1;
-            while (line != null) {
-                StringTokenizer itr = new StringTokenizer(line);
-                int i = 0;
-                while (itr.hasMoreTokens()) {
-                    w = itr.nextToken().toLowerCase();
-                    switch(i) {
-                        case 0:
-                            w = w.replace("(", "");
-                            stringKey = w.replace(",", "");
-                            break;
-                        case 1:
-                            break;
-                        case 2:
-                            integerStrValue = w.replace(",", "");
-                            integerValue = Integer.parseInt(integerStrValue);
-                            break;
-                        default:
-                            break;
-                    }
-                    i++;
-                }
-                if (stringKey.equals("*")) {
-                    WordOccurrences.put(TOTAL_NUMBER_OF_LINES, integerValue);
+            PairOfStrings key = new PairOfStrings();
+            IntWritable val = new IntWritable();
+            SequenceFile.Reader sequenceFileReader = new SequenceFile.Reader(context.getConfiguration(), SequenceFile.Reader.file(pt));
+//            String line;
+//            String w;
+//            String stringKey = "";
+//            String integerStrValue;
+//            int integerValue = -1;
+            while (sequenceFileReader.next(key, val)) {
+//                StringTokenizer itr = new StringTokenizer(line);
+//                int i = 0;
+//                while (itr.hasMoreTokens()) {
+//                    w = itr.nextToken().toLowerCase();
+//                    switch(i) {
+//                        case 0:
+//                            w = w.replace("(", "");
+//                            stringKey = w.replace(",", "");
+//                            break;
+//                        case 1:
+//                            break;
+//                        case 2:
+//                            integerStrValue = w.replace(",", "");
+//                            integerValue = Integer.parseInt(integerStrValue);
+//                            break;
+//                        default:
+//                            break;
+//                    }
+//                    i++;
+//                }
+                String leftWord = key.getLeftElement();
+                int occurrenceCount = Integer.parseInt(val.toString());
+                if (leftWord.equals("*")) {
+                    WordOccurrences.put(TOTAL_NUMBER_OF_LINES, occurrenceCount);
                 } else {
-                    WordOccurrences.put(stringKey, integerValue);
+                    WordOccurrences.put(leftWord, occurrenceCount);
                 }
-                line = br.readLine();
+
+
+//                if (stringKey.equals("*")) {
+//                    WordOccurrences.put(TOTAL_NUMBER_OF_LINES, integerValue);
+//                } else {
+//                    WordOccurrences.put(stringKey, integerValue);
+//                }
+//                line = br.readLine();
+//                sequenceFileReader.close();
             }
         }
 
@@ -302,6 +312,7 @@ public class PairsPMI extends Configured implements Tool {
         firstJob.setMapOutputValueClass(IntWritable.class);
         firstJob.setOutputKeyClass(PairOfStrings.class);
         firstJob.setOutputValueClass(IntWritable.class);
+        firstJob.setOutputFormatClass(SequenceFileOutputFormat.class);
 
         firstJob.setMapperClass(FirstJobMapper.class);
         firstJob.setCombinerClass(FirstJobCombiner.class);
