@@ -5,6 +5,7 @@ import com.google.common.collect.Sets;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +27,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -55,27 +57,34 @@ public class PairsPMI extends Configured implements Tool {
                 throws IOException, InterruptedException {
             String line = ((Text) value).toString();
 
-            // Count # of lines
-            PAIR.set("*", "*");
-            context.write(PAIR, ONE);
 
             StringTokenizer itr = new StringTokenizer(line);
 
             int cnt = 0;
-            Set set = Sets.newHashSet();
+            HashSet<String> set = new HashSet<String>();
             while (itr.hasMoreTokens()) {
                 cnt++;
                 String w = itr.nextToken().toLowerCase().replaceAll("(^[^a-z]+|[^a-z]+$)", "");
                 if (w.length() == 0) continue;
-
-                // Do a unique word count per line
-                if (set.add(w)) {
-                    PAIR.set(w, "*");
-                    context.write(PAIR, ONE);
-                }
-
+                set.add(w);
                 // Consider up to the first 100 words in each line
                 if (cnt >= 100) break;
+            }
+
+            String[] words = new String[set.size()];
+            words = set.toArray(words);
+
+            // Ignore empty lines
+            if (words.length == 0) return;
+
+            // Count # of lines
+            PAIR.set("*", "*");
+            context.write(PAIR, ONE);
+
+            // Do a unique word count per line
+            for (int i = 0; i < words.length; i++) {
+                PAIR.set(words[i], "*");
+                context.write(PAIR, ONE);
             }
         }
     }
