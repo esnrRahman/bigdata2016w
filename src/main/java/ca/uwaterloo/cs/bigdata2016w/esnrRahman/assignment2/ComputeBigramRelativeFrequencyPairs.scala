@@ -1,6 +1,6 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2
 
-import io.bespin.scala.util.Tokenizer
+import ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2.util.Tokenizer
 
 import collection.mutable.HashMap
 
