@@ -21,14 +21,14 @@ class Conf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
 object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
   val log = Logger.getLogger(getClass().getName())
 
-  def wcIter(iter: Iterator[String]): Iterator[(String, Int)] = {
-    val counts = new HashMap[String, Int]() { override def default(key: String) = 0 }
+  // def wcIter(iter: Iterator[String]): Iterator[(String, Int)] = {
+  //   val counts = new HashMap[String, Int]() { override def default(key: String) = 0 }
 
-    iter.flatMap(line => tokenize(line))
-      .foreach { t => counts.put(t, counts(t) + 1) }
+  //   iter.flatMap(line => tokenize(line))
+  //     .foreach { t => counts.put(t, counts(t) + 1) }
 
-    counts.iterator
-  }
+  //   counts.iterator
+  // }
 
   def main(argv: Array[String]) {
     val args = new Conf(argv)
@@ -46,17 +46,36 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
     val textFile = sc.textFile(args.input())
 
-    if (!args.imc()) {
-      textFile
-        .flatMap(line => tokenize(line))
-        .map(word => (word, 1))
-        .reduceByKey(_ + _)
-        .saveAsTextFile(args.output())
-    } else {
-      textFile
-        .mapPartitions(wcIter)
-        .reduceByKey(_ + _)
-        .saveAsTextFile(args.output())
-    }
+    // if (!args.imc()) {
+    textFile
+      .flatMap(line => {
+        val tokens = tokenize(line)
+
+        //          val wordCount = tokens
+        //            .map(word => (word, 1))
+        //            .reduceByKey(_ + _)
+        // .saveAsTextFile(args.output())
+
+        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), p(1))).toList else List()
+
+        //            .reduceByKey(_ + _)
+
+        //          wordCount.union(bigramCount)
+
+      })
+      .flatMap(pair => {
+        val firstWord = (pair._1, " *")
+        //            println(firstWord)
+        (firstWord, 1) :: List((pair, 1))
+      })
+      .reduceByKey(_ + _)
+      .saveAsTextFile(args.output())
+
+    // } else {
+    //   textFile
+    //     .mapPartitions(wcIter)
+    //     .reduceByKey(_ + _)
+    //     .saveAsTextFile(args.output())
+    // }
   }
 }
