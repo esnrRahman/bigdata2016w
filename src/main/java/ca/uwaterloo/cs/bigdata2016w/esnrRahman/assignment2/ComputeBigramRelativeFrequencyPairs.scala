@@ -20,15 +20,6 @@ class Conf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
 object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
   val log = Logger.getLogger(getClass().getName())
 
-  // def wcIter(iter: Iterator[String]): Iterator[(String, Int)] = {
-  //   val counts = new HashMap[String, Int]() { override def default(key: String) = 0 }
-
-  //   iter.flatMap(line => tokenize(line))
-  //     .foreach { t => counts.put(t, counts(t) + 1) }
-
-  //   counts.iterator
-  // }
-
   def calculateRelFreq(iter: Iterator[((String, String), Int)]): Iterator[((String, String), Float)] = {
     var x: Int = -1
     iter.map { case ((firstWord, secondWord), count) => {
@@ -47,7 +38,6 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
     def getPartition(key: Any): Int = {
       val k = key.asInstanceOf[(String, String)]
-      //      k * partitions / elements
       (k._1.hashCode & Integer.MAX_VALUE) % numPartitions
     }
   }
@@ -69,26 +59,13 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
     val textFile = sc.textFile(args.input())
 
-    // if (!args.imc()) {
     textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-
-        //          val wordCount = tokens
-        //            .map(word => (word, 1))
-        //            .reduceByKey(_ + _)
-        // .saveAsTextFile(args.output())
-
         if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), p(1))).toList else List()
-
-        //            .reduceByKey(_ + _)
-
-        //          wordCount.union(bigramCount)
-
       })
       .flatMap(pair => {
         val firstWord = (pair._1, "*")
-        //            println(firstWord)
         (firstWord, 1) :: List((pair, 1))
       })
       .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
@@ -96,11 +73,5 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
       .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
 
-    // } else {
-    //   textFile
-    //     .mapPartitions(wcIter)
-    //     .reduceByKey(_ + _)
-    //     .saveAsTextFile(args.output())
-    // }
   }
 }
