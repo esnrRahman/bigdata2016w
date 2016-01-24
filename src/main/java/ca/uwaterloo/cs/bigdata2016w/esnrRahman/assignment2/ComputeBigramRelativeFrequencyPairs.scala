@@ -29,16 +29,28 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
   //   counts.iterator
   // }
 
+  def calculateRelFreq(iter: Iterator[((String, String), Int)]): Iterator[((String, String), Float)] = {
+    var x: Int = -1
+    iter.map { case ((firstWord, secondWord), count) => {
+      if (secondWord == "*") {
+        x = count
+        ((firstWord, secondWord), count.toFloat)
+      } else {
+        ((firstWord, secondWord), count.toFloat / x)
+      }
+    }
+    }
+  }
+
   class CustomPartitioner(val numPartitions: Int)
     extends Partitioner {
 
     def getPartition(key: Any): Int = {
       val k = key.asInstanceOf[(String, String)]
-//      k * partitions / elements
+      //      k * partitions / elements
       (k._1.hashCode & Integer.MAX_VALUE) % numPartitions
     }
   }
-
 
 
   def main(argv: Array[String]) {
@@ -75,12 +87,13 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
       })
       .flatMap(pair => {
-        val firstWord = (pair._1, " *")
+        val firstWord = (pair._1, "*")
         //            println(firstWord)
         (firstWord, 1) :: List((pair, 1))
       })
       .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
       .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
+      .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
 
     // } else {
