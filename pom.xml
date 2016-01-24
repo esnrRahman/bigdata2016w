@@ -22,7 +22,7 @@ https://repository.cloudera.com/artifactory/cloudera-repos/
 <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 <scala.version>2.10.4</scala.version>
 <!--
- find the versions in http://www.cloudera.com/content/cloudera/en/documentation/core/latest/topics/cdh_vd_cdh5_maven_repo.html 
+ find the versions in http://www.cloudera.com/content/cloudera/en/documentation/core/latest/topics/cdh_vd_cdh5_maven_repo.html
 -->
 <hadoop.version>2.6.0-cdh5.5.0</hadoop.version>
 <spark.version>1.5.0-cdh5.5.0</spark.version>
@@ -77,7 +77,7 @@ https://repository.cloudera.com/artifactory/cloudera-repos/
 <!--
  This is an Mac OSX issue because the default filesystem is case-insensitive,
                    so multiple versions of files (w/ different cases) clash when Hadoop tries
-                   to unpack the jar. 
+                   to unpack the jar.
 -->
 <filters>
 <filter>
@@ -137,6 +137,11 @@ https://repository.cloudera.com/artifactory/cloudera-repos/
 <groupId>org.apache.spark</groupId>
 <artifactId>spark-core_2.10</artifactId>
 <version>${spark.version}</version>
+</dependency>
+<dependency>
+<groupId>org.rogach</groupId>
+<artifactId>scallop_2.10</artifactId>
+<version>0.9.5</version>
 </dependency>
 </dependencies>
 </project>
