@@ -6,8 +6,7 @@ import collection.mutable.HashMap
 
 import org.apache.log4j._
 import org.apache.hadoop.fs._
-import org.apache.spark.SparkContext
-import org.apache.spark.SparkConf
+import org.apache.spark.{Partitioner, SparkContext, SparkConf}
 import org.rogach.scallop._
 
 class Conf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
@@ -29,6 +28,18 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
   //   counts.iterator
   // }
+
+  class CustomPartitioner(val numPartitions: Int)
+    extends Partitioner {
+
+    def getPartition(key: Any): Int = {
+      val k = key.asInstanceOf[(String, String)]
+//      k * partitions / elements
+      (k._1.hashCode & Integer.MAX_VALUE) % numPartitions
+    }
+  }
+
+
 
   def main(argv: Array[String]) {
     val args = new Conf(argv)
@@ -68,7 +79,8 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
         //            println(firstWord)
         (firstWord, 1) :: List((pair, 1))
       })
-      .reduceByKey(_ + _)
+      .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
+      .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
       .saveAsTextFile(args.output())
 
     // } else {
