@@ -44,7 +44,7 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
 
   def main(argv: Array[String]) {
-    val args = new Conf(argv)
+    val args = new ConfStripes(argv)
 
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())

@@ -2,14 +2,14 @@ package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2
 
 import ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2.util.Tokenizer
 
-import collection.mutable.HashMap
-
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.{Partitioner, SparkContext, SparkConf}
 import org.rogach.scallop._
 
-class Conf(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
+import collection.mutable.HashMap
+
+class ConfStripes(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
   mainOptions = Seq(input, output, reducers)
   val input = opt[String](descr = "input path", required = true)
   val output = opt[String](descr = "output path", required = true)
@@ -42,9 +42,8 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     }
   }
 
-
   def main(argv: Array[String]) {
-    val args = new Conf(argv)
+    val args = new ConfStripes(argv)
 
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())
@@ -62,16 +61,38 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), p(1))).toList else List()
+        val stripes = new HashMap[String, HashMap[String, Float]]() { override def default(key: String) = new HashMap[String, Float]() }
+
+        val bigramPairs = if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), p(1))).toList else List()
+
+        bigramPairs.foreach { bigram =>
+          val firstWord: String = bigram._1
+          val secondWord: String = bigram._2
+
+          //          if (stripes.containsKey(firstWord)) {
+          val stripe = stripes(firstWord)
+          if (stripe.contains(secondWord)) {
+            stripe.put(secondWord, stripe(secondWord) + 1.0f)
+          }
+          else {
+            stripe.put(secondWord, 1.0f)
+          }
+          //          }
+          //          else {
+//          val stripe = new HashMap[String, Float]()
+//          stripe.put(secondWord, 1.0f)
+          stripes.put(firstWord, stripe)
+
+          //          }
+//          stripes
+        }
+        stripes.iterator
       })
-      .flatMap(pair => {
-        val firstWord = (pair._1, "*")
-        (firstWord, 1) :: List((pair, 1))
-      })
-      .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
-      .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
-      .mapPartitions(calculateRelFreq)
+      //      .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
+      //      .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
+      //      .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
 
   }
+
 }
