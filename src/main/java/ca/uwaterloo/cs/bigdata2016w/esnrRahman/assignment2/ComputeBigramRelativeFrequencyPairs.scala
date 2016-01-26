@@ -2,8 +2,6 @@ package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2
 
 import ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment2.util.Tokenizer
 
-import collection.mutable.HashMap
-
 import org.apache.log4j._
 import org.apache.hadoop.fs._
 import org.apache.spark.{Partitioner, SparkContext, SparkConf}
@@ -44,7 +42,7 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
 
 
   def main(argv: Array[String]) {
-    val args = new ConfStripes(argv)
+    val args = new Conf(argv)
 
     log.info("Input: " + args.input())
     log.info("Output: " + args.output())
@@ -57,7 +55,7 @@ object ComputeBigramRelativeFrequencyPairs extends Tokenizer {
     val outputDir = new Path(args.output())
     FileSystem.get(sc.hadoopConfiguration).delete(outputDir, true)
 
-    val textFile = sc.textFile(args.input())
+    val textFile = sc.textFile(args.input(), args.reducers())
 
     textFile
       .flatMap(line => {
