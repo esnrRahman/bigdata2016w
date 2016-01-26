@@ -102,6 +102,13 @@ https://repository.cloudera.com/artifactory/cloudera-repos/
 <groupId>org.apache.hadoop</groupId>
 <artifactId>hadoop-client</artifactId>
 <version>${hadoop.version}</version>
+<!-- ADDED  -->
+<exclusions>
+    <exclusion>
+        <groupId>javax.servlet</groupId>
+        <artifactId>*</artifactId>
+    </exclusion>
+</exclusions>
 </dependency>
 <dependency>
 <groupId>args4j</groupId>
