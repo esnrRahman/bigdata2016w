@@ -69,22 +69,20 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
           val firstWord: String = bigram._1
           val secondWord: String = bigram._2
 
-          //          if (stripes.containsKey(firstWord)) {
-          val stripe = stripes(firstWord)
-          if (stripe.contains(secondWord)) {
-            stripe.put(secondWord, stripe(secondWord) + 1.0f)
+          if (stripes.contains(firstWord)) {
+            val stripe = stripes(firstWord)
+            if (stripe.contains(secondWord)) {
+              stripe.put(secondWord, stripe(secondWord) + 1.0f)
+            }
+            else {
+              stripe.put(secondWord, 1.0f)
+            }
           }
           else {
+            val stripe = new HashMap[String, Float]()
             stripe.put(secondWord, 1.0f)
+            stripes.put(firstWord, stripe)
           }
-          //          }
-          //          else {
-//          val stripe = new HashMap[String, Float]()
-//          stripe.put(secondWord, 1.0f)
-          stripes.put(firstWord, stripe)
-
-          //          }
-//          stripes
         }
         stripes.iterator
       })
