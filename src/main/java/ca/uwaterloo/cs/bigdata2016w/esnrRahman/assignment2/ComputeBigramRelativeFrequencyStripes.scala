@@ -102,13 +102,25 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
           else {
             val1.put(pair._1, pair._2)
           }
-//          println("C -> " + secondWord)
+          //          println("C -> " + secondWord)
         }
-//        println("A -> " + val1)
-//        println("B -> " + val2)
+        //        println("A -> " + val1)
+        //        println("B -> " + val2)
         val1
       })
+      .map { (pair) =>
+        var totalNum = 0.0f
+        val stripe = pair._2
+        stripe.foreach { (secondPair) =>
+          totalNum += secondPair._2
+        }
 
+        stripe.foreach {(secondPair) =>
+          stripe.put(secondPair._1, secondPair._2/totalNum)
+        }
+        pair
+//        println(pair)
+      }
       //      .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
 
