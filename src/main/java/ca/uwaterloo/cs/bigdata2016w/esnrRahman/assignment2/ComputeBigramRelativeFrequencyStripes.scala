@@ -20,25 +20,25 @@ class ConfStripes(args: Seq[String]) extends ScallopConf(args) with Tokenizer {
 object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
   val log = Logger.getLogger(getClass().getName())
 
-  def calculateRelFreq(iter: Iterator[((String, String), Int)]): Iterator[((String, String), Float)] = {
-    var x: Int = -1
-    iter.map { case ((firstWord, secondWord), count) => {
-      if (secondWord == "*") {
-        x = count
-        ((firstWord, secondWord), count.toFloat)
-      } else {
-        ((firstWord, secondWord), count.toFloat / x)
-      }
-    }
-    }
-  }
+  //  def calculateRelFreq(iter: Iterator[((String, String), Int)]): Iterator[((String, String), Float)] = {
+  //    var x: Int = -1
+  //    iter.map { case ((firstWord, secondWord), count) => {
+  //      if (secondWord == "*") {
+  //        x = count
+  //        ((firstWord, secondWord), count.toFloat)
+  //      } else {
+  //        ((firstWord, secondWord), count.toFloat / x)
+  //      }
+  //    }
+  //    }
+  //  }
 
   class CustomPartitioner(val numPartitions: Int)
     extends Partitioner {
 
     def getPartition(key: Any): Int = {
-      val k = key.asInstanceOf[(String, String)]
-      (k._1.hashCode & Integer.MAX_VALUE) % numPartitions
+      val k = key.asInstanceOf[String]
+      (k.hashCode & Integer.MAX_VALUE) % numPartitions
     }
   }
 
@@ -61,7 +61,9 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
     textFile
       .flatMap(line => {
         val tokens = tokenize(line)
-        val stripes = new HashMap[String, HashMap[String, Float]]() { override def default(key: String) = new HashMap[String, Float]() }
+        val stripes = new HashMap[String, HashMap[String, Float]]() {
+          override def default(key: String) = new HashMap[String, Float]()
+        }
 
         val bigramPairs = if (tokens.length > 1) tokens.sliding(2).map(p => (p(0), p(1))).toList else List()
 
@@ -86,8 +88,24 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
         }
         stripes.iterator
       })
+      //      .partitionBy(new CustomPartitioner(args.reducers()))
+      //      .reduceByKey((str, innerMap) => {
+
+      //      })
       //      .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
-      //      .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
+      .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
+      //      .reduceByKey((val1, val2) => {
+      //      val2.foreach { (secondWord) =>
+      //        if (val1.contains(secondWord)) {
+      //          val1.put(secondWord, val1(secondWord) + count)
+      //        }
+      //        else {
+      //          val1.put(secondWord, count)
+      //        }
+      //      }
+      //      val1
+      //    })
+
       //      .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
 
