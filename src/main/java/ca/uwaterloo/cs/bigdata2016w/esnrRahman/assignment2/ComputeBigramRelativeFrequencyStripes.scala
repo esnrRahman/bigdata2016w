@@ -94,17 +94,20 @@ object ComputeBigramRelativeFrequencyStripes extends Tokenizer {
       //      })
       //      .reduceByKey(new CustomPartitioner(args.reducers()), _ + _)
       .repartitionAndSortWithinPartitions(new CustomPartitioner(args.reducers()))
-      //      .reduceByKey((val1, val2) => {
-      //      val2.foreach { (secondWord) =>
-      //        if (val1.contains(secondWord)) {
-      //          val1.put(secondWord, val1(secondWord) + count)
-      //        }
-      //        else {
-      //          val1.put(secondWord, count)
-      //        }
-      //      }
-      //      val1
-      //    })
+      .reduceByKey((val1, val2) => {
+        val2.foreach { (pair) =>
+          if (val1.contains(pair._1)) {
+            val1.put(pair._1, val1(pair._1) + pair._2)
+          }
+          else {
+            val1.put(pair._1, pair._2)
+          }
+//          println("C -> " + secondWord)
+        }
+//        println("A -> " + val1)
+//        println("B -> " + val2)
+        val1
+      })
 
       //      .mapPartitions(calculateRelFreq)
       .saveAsTextFile(args.output())
