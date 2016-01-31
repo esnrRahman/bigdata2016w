@@ -1,18 +1,20 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment3;
 
+import java.io.ByteArrayOutputStream;
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
 import java.util.List;
 import java.util.StringTokenizer;
 
 import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Reducer;
@@ -27,21 +29,21 @@ import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
 import org.kohsuke.args4j.ParserProperties;
 
-import tl.lin.data.array.ArrayListWritable;
 import tl.lin.data.fd.Object2IntFrequencyDistribution;
 import tl.lin.data.fd.Object2IntFrequencyDistributionEntry;
-import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectInt;
 import tl.lin.data.pair.PairOfWritables;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
-  private static class MyMapper extends Mapper<LongWritable, Text, Text, PairOfInts> {
+  private static class MyMapper extends Mapper<LongWritable, Text, PairOfWritables<Text, IntWritable>, IntWritable> {
     private static final Text WORD = new Text();
     private static final Object2IntFrequencyDistribution<String> COUNTS =
         new Object2IntFrequencyDistributionEntry<String>();
-
+    private static final PairOfWritables<Text, IntWritable> KEYPAIR = new PairOfWritables<Text, IntWritable>();
+    private static final IntWritable DOCID = new IntWritable();
+    private static final IntWritable TF = new IntWritable();
     @Override
     public void map(LongWritable docno, Text doc, Context context)
         throws IOException, InterruptedException {
@@ -62,36 +64,69 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         COUNTS.increment(token);
       }
 
-      // Emit postings.
+      // Emit postings in the form of ((term, df), tf)
       for (PairOfObjectInt<String> e : COUNTS) {
         WORD.set(e.getLeftElement());
-        context.write(WORD, new PairOfInts((int) docno.get(), e.getRightElement()));
+        DOCID.set((int) docno.get());
+        TF.set(e.getRightElement());
+        KEYPAIR.set(WORD, DOCID);
+        context.write(KEYPAIR, TF);
       }
     }
   }
 
+//  protected static class MyPartitioner extends Partitioner<PairOfStrings, FloatWritable> {
+//    @Override
+//    public int getPartition(PairOfStrings key, FloatWritable value, int numReduceTasks) {
+//      return (key.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
+//    }
+//  }
+
   private static class MyReducer extends
-      Reducer<Text, PairOfInts, Text, PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>> {
+      Reducer<PairOfWritables<Text, IntWritable>, IntWritable, Text, PairOfWritables<IntWritable, BytesWritable>> {
     private final static IntWritable DF = new IntWritable();
+    private static final Text PREVTERM = new Text();
+    private static final Text CURRTERM = new Text();
+    private static int dGap = 0;
+    private static int lastDocId = 0;
+    private static boolean FLAG = true;
+    private static final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
+    private static final DataOutputStream outputStream = new DataOutputStream(byteArrayOutputStream);
 
     @Override
-    public void reduce(Text key, Iterable<PairOfInts> values, Context context)
+    public void reduce(PairOfWritables<Text, IntWritable> keyPair, Iterable<IntWritable> values, Context context)
         throws IOException, InterruptedException {
-      Iterator<PairOfInts> iter = values.iterator();
-      ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
 
-      int df = 0;
-      while (iter.hasNext()) {
-        postings.add(iter.next().clone());
-        df++;
+      int documentFrequency = 0;
+
+      if (FLAG) {
+        PREVTERM.set(keyPair.getLeftElement());
+        FLAG = false;
       }
 
-      // Sort the postings by docno ascending.
-      Collections.sort(postings);
+      CURRTERM.set(keyPair.getLeftElement());
 
-      DF.set(df);
-      context.write(key,
-          new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>(DF, postings));
+      if (!CURRTERM.equals(PREVTERM)) {
+        DF.set(documentFrequency);
+        BytesWritable bytesWritable = new BytesWritable(byteArrayOutputStream.toByteArray());
+        context.write(CURRTERM, new PairOfWritables<IntWritable, BytesWritable>(DF, bytesWritable));
+
+        dGap = 0;
+        lastDocId = 0;
+        documentFrequency = 0;
+        byteArrayOutputStream.reset();
+      }
+
+      // Append in the BytesWritable. Equivalent to P.APPEND(<n ,f>)
+      for (IntWritable tf : values) {
+        documentFrequency += 1;
+        dGap = keyPair.getRightElement().get() - lastDocId;
+        lastDocId = keyPair.getRightElement().get();
+        WritableUtils.writeVInt(outputStream, dGap);
+        WritableUtils.writeVInt(outputStream, tf.get());
+      }
+      PREVTERM.set(CURRTERM.toString());
+
     }
   }
 
@@ -133,8 +168,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     FileInputFormat.setInputPaths(job, new Path(args.input));
     FileOutputFormat.setOutputPath(job, new Path(args.output));
 
-    job.setMapOutputKeyClass(Text.class);
-    job.setMapOutputValueClass(PairOfInts.class);
+    job.setMapOutputKeyClass(PairOfWritables.class);
+    job.setMapOutputValueClass(IntWritable.class);
     job.setOutputKeyClass(Text.class);
     job.setOutputValueClass(PairOfWritables.class);
     job.setOutputFormatClass(MapFileOutputFormat.class);
