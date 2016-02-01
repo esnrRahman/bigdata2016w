@@ -24,6 +24,7 @@ import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.MapFileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.yarn.webapp.hamlet.HamletSpec;
 import org.apache.log4j.Logger;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
@@ -127,6 +128,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(new IntWritable(documentFrequency),
                     new BytesWritable(byteArrayOutputStream.toByteArray())));
             byteArrayOutputStream.reset();
+            PREVTERM = "";
             super.cleanup(context);
         }
     }
