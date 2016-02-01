@@ -108,7 +108,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
             CURRTERM.set(keyPair.getLeftElement());
 
-            if (!CURRTERM.equals(PREVTERM)) {
+            if (!CURRTERM.equals(PREVTERM) && !PREVTERM.toString().isEmpty()) {
                 DF.set(documentFrequency);
                 BytesWritable bytesWritable = new BytesWritable(byteArrayOutputStream.toByteArray());
                 context.write(CURRTERM, new PairOfWritables<IntWritable, BytesWritable>(DF, bytesWritable));

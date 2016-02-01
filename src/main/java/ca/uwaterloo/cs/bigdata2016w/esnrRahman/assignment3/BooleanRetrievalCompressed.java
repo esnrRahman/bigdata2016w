@@ -143,6 +143,7 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
     ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(value.getRightElement().getBytes());
     DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+    df.set(value.getLeftElement().get());
     for (int i = 0; i < df.get(); i++) {
       int gappedDocId = WritableUtils.readVInt(dataInputStream);
       int tf = WritableUtils.readVInt(dataInputStream);
