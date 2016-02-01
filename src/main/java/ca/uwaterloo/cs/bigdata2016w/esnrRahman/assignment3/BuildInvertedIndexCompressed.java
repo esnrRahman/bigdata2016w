@@ -89,7 +89,9 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static class MyReducer extends
             Reducer<PairOfStringInt, IntWritable, Text, PairOfWritables<IntWritable, BytesWritable>> {
         private final static IntWritable DF = new IntWritable();
-        private static String PREVTERM = null;
+        private static Text PREVTERM = new Text("");
+        private static Text CURRTERM = new Text();
+        private static boolean FLAG = true;
         private static int dGap = 0;
         private static int lastDocId = 0;
         private static final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
@@ -100,7 +102,14 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         public void reduce(PairOfStringInt keyPair, Iterable<IntWritable> values, Context context)
                 throws IOException, InterruptedException {
 
-            if (!keyPair.getLeftElement().equals(PREVTERM) && PREVTERM != null) {
+            if (FLAG) {
+                PREVTERM.set(keyPair.getLeftElement());
+                FLAG = false;
+            }
+
+            CURRTERM.set(keyPair.getLeftElement());
+
+            if (!CURRTERM.equals(PREVTERM) && !PREVTERM.toString().isEmpty()) {
                 DF.set(documentFrequency);
                 BytesWritable bytesWritable = new BytesWritable(byteArrayOutputStream.toByteArray());
                 context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(DF, bytesWritable));
@@ -111,7 +120,6 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
                 byteArrayOutputStream.reset();
             }
 
-            PREVTERM = keyPair.getLeftElement();
             // Append in the BytesWritable. Equivalent to P.APPEND(<n ,f>)
             for (IntWritable tf : values) {
                 documentFrequency += 1;
@@ -120,7 +128,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
                 WritableUtils.writeVInt(outputStream, dGap);
                 WritableUtils.writeVInt(outputStream, tf.get());
             }
-
+            PREVTERM.set(CURRTERM.toString());
         }
 
         @Override
@@ -128,7 +136,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(new IntWritable(documentFrequency),
                     new BytesWritable(byteArrayOutputStream.toByteArray())));
             byteArrayOutputStream.reset();
-            PREVTERM = "";
+            PREVTERM.set("");
+            CURRTERM.set("");
             super.cleanup(context);
         }
     }
