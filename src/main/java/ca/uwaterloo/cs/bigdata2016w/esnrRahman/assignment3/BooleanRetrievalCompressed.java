@@ -11,6 +11,7 @@ import java.util.TreeSet;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.ContentSummary;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -21,6 +22,7 @@ import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.log4j.Logger;
 import org.kohsuke.args4j.CmdLineException;
 import org.kohsuke.args4j.CmdLineParser;
 import org.kohsuke.args4j.Option;
@@ -31,15 +33,25 @@ import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfWritables;
 
 public class BooleanRetrievalCompressed extends Configured implements Tool {
+
+  private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
+
   private MapFile.Reader index;
   private FSDataInputStream collection;
   private Stack<Set<Integer>> stack;
+  private String mainIndexPath;
+  private ContentSummary contentSummary;
+  private FileSystem mainFs;
 
   private BooleanRetrievalCompressed() {}
 
   private void initialize(String indexPath, String collectionPath, FileSystem fs) throws IOException {
-    index = new MapFile.Reader(new Path(indexPath + "/part-r-00000"), fs.getConf());
-    collection = fs.open(new Path(collectionPath));
+
+    mainFs = fs;
+    mainIndexPath = indexPath;
+    Path pt = new Path(mainIndexPath);
+    contentSummary = mainFs.getContentSummary(pt);
+    collection =  mainFs.open(new Path(collectionPath));
     stack = new Stack<Set<Integer>>();
   }
 
@@ -111,6 +123,16 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
   }
 
   private ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
+
+    long fileCount = contentSummary.getDirectoryCount();
+    int numOfReducers = (int) fileCount - 1;
+    LOG.info("The file count is --> " + fileCount);
+    LOG.info("The reducer count is --> " + (fileCount - 1));
+
+    int reducerNumber = (term.hashCode() & Integer.MAX_VALUE) % numOfReducers;
+
+    index = new MapFile.Reader(new Path(mainIndexPath + "/part-r-0000" + reducerNumber), mainFs.getConf());
+
     Text key = new Text();
     PairOfWritables<IntWritable, BytesWritable> value =
         new PairOfWritables<IntWritable, BytesWritable>();
@@ -172,7 +194,6 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
     }
 
     FileSystem fs = FileSystem.get(new Configuration());
-
     initialize(args.index, args.collection, fs);
 
     System.out.println("Query: " + args.query);
