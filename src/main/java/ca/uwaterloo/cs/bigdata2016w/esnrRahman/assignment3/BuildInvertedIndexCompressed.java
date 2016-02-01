@@ -14,8 +14,6 @@ import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.LongWritable;
 import org.apache.hadoop.io.Text;
-import org.apache.hadoop.io.WritableComparable;
-import org.apache.hadoop.io.WritableComparator;
 import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.mapreduce.Job;
 import org.apache.hadoop.mapreduce.Mapper;
@@ -35,17 +33,18 @@ import org.kohsuke.args4j.ParserProperties;
 import tl.lin.data.fd.Object2IntFrequencyDistribution;
 import tl.lin.data.fd.Object2IntFrequencyDistributionEntry;
 import tl.lin.data.pair.PairOfObjectInt;
+import tl.lin.data.pair.PairOfStringInt;
 import tl.lin.data.pair.PairOfWritables;
 
 public class BuildInvertedIndexCompressed extends Configured implements Tool {
     private static final Logger LOG = Logger.getLogger(BuildInvertedIndexCompressed.class);
 
-    private static class MyMapper extends Mapper<LongWritable, Text, PairOfWritables<Text, IntWritable>, IntWritable> {
-        private static final Text WORD = new Text();
+    private static class MyMapper extends Mapper<LongWritable, Text, PairOfStringInt, IntWritable> {
+        private static String WORD = "";
         private static final Object2IntFrequencyDistribution<String> COUNTS =
                 new Object2IntFrequencyDistributionEntry<String>();
-        private static final PairOfWritables<Text, IntWritable> KEYPAIR = new PairOfWritables<Text, IntWritable>();
-        private static final IntWritable DOCID = new IntWritable();
+        private static final PairOfStringInt KEYPAIR = new PairOfStringInt();
+        private static int DOCID = -1;
         private static final IntWritable TF = new IntWritable();
 
         @Override
@@ -70,8 +69,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
             // Emit postings in the form of ((term, df), tf)
             for (PairOfObjectInt<String> e : COUNTS) {
-                WORD.set(e.getLeftElement());
-                DOCID.set((int) docno.get());
+                WORD = (e.getLeftElement()).toString();
+                DOCID = (int) docno.get();
                 TF.set(e.getRightElement());
                 KEYPAIR.set(WORD, DOCID);
                 context.write(KEYPAIR, TF);
@@ -79,46 +78,15 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         }
     }
 
-    private static class MyKeyComparator extends WritableComparator {
-        protected MyKeyComparator() {
-            super(PairOfWritableComparables.class, true);
-        }
-
+    protected static class MyPartitioner extends Partitioner<PairOfStringInt, IntWritable> {
         @Override
-        public int compare(WritableComparable wc1, WritableComparable wc2) {
-            PairOfWritableComparables pair1 = (PairOfWritableComparables) wc1;
-            PairOfWritableComparables pair2 = (PairOfWritableComparables) wc2;
-
-            return pair1.compareTo(pair2);
-        }
-    }
-
-    private static class PairOfWritableComparables extends
-            PairOfWritables<Text, IntWritable>
-            implements WritableComparable<PairOfWritables<Text, IntWritable>> {
-
-        @Override
-        public int compareTo(PairOfWritables<Text, IntWritable> pow1) {
-
-            // Compare each element of the pair with the other pair
-            int compareValue = this.getLeftElement().toString().compareTo(pow1.getLeftElement().toString());
-            if (compareValue == 0) {
-                compareValue = this.getRightElement().compareTo(pow1.getRightElement());
-            }
-            return compareValue;
-        }
-    }
-
-
-    private static class MyPartitioner extends Partitioner<PairOfWritableComparables, IntWritable> {
-        @Override
-        public int getPartition(PairOfWritableComparables key, IntWritable value, int numReduceTasks) {
-            return key.getLeftElement().hashCode() % numReduceTasks;
+        public int getPartition(PairOfStringInt keyPair, IntWritable value, int numReduceTasks) {
+            return (keyPair.getLeftElement().hashCode() & Integer.MAX_VALUE) % numReduceTasks;
         }
     }
 
     private static class MyReducer extends
-            Reducer<PairOfWritables<Text, IntWritable>, IntWritable, Text, PairOfWritables<IntWritable, BytesWritable>> {
+            Reducer<PairOfStringInt, IntWritable, Text, PairOfWritables<IntWritable, BytesWritable>> {
         private final static IntWritable DF = new IntWritable();
         private static final Text PREVTERM = new Text();
         private static final Text CURRTERM = new Text();
@@ -129,7 +97,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         private static final DataOutputStream outputStream = new DataOutputStream(byteArrayOutputStream);
 
         @Override
-        public void reduce(PairOfWritables<Text, IntWritable> keyPair, Iterable<IntWritable> values, Context context)
+        public void reduce(PairOfStringInt keyPair, Iterable<IntWritable> values, Context context)
                 throws IOException, InterruptedException {
 
             int documentFrequency = 0;
@@ -155,8 +123,8 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             // Append in the BytesWritable. Equivalent to P.APPEND(<n ,f>)
             for (IntWritable tf : values) {
                 documentFrequency += 1;
-                dGap = keyPair.getRightElement().get() - lastDocId;
-                lastDocId = keyPair.getRightElement().get();
+                dGap = keyPair.getRightElement() - lastDocId;
+                lastDocId = keyPair.getRightElement();
                 WritableUtils.writeVInt(outputStream, dGap);
                 WritableUtils.writeVInt(outputStream, tf.get());
             }
@@ -209,7 +177,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         FileInputFormat.setInputPaths(job, new Path(args.input));
         FileOutputFormat.setOutputPath(job, new Path(args.output));
 
-        job.setMapOutputKeyClass(PairOfWritables.class);
+        job.setMapOutputKeyClass(PairOfStringInt.class);
         job.setMapOutputValueClass(IntWritable.class);
         job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(PairOfWritables.class);
@@ -218,7 +186,6 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         job.setMapperClass(MyMapper.class);
         job.setReducerClass(MyReducer.class);
         job.setPartitionerClass(MyPartitioner.class);
-        job.setSortComparatorClass(MyKeyComparator.class);
 
         // Delete the output directory if it exists already.
         Path outputDir = new Path(args.output);
