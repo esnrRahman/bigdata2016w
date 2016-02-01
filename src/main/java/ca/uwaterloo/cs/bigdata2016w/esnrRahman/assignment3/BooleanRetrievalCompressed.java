@@ -126,8 +126,6 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
     long fileCount = contentSummary.getDirectoryCount();
     int numOfReducers = (int) fileCount - 1;
-    LOG.info("The file count is --> " + fileCount);
-    LOG.info("The reducer count is --> " + (fileCount - 1));
 
     int reducerNumber = (term.hashCode() & Integer.MAX_VALUE) % numOfReducers;
 

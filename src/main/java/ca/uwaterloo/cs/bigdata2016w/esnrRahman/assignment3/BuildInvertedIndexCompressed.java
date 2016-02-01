@@ -95,12 +95,11 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         private static boolean FLAG = true;
         private static final ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
         private static final DataOutputStream outputStream = new DataOutputStream(byteArrayOutputStream);
+        private static int documentFrequency = 0;
 
         @Override
         public void reduce(PairOfStringInt keyPair, Iterable<IntWritable> values, Context context)
                 throws IOException, InterruptedException {
-
-            int documentFrequency = 0;
 
             if (FLAG) {
                 PREVTERM.set(keyPair.getLeftElement());
@@ -130,6 +129,14 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
             }
             PREVTERM.set(CURRTERM.toString());
 
+        }
+
+        @Override
+        protected void cleanup(Context context) throws IOException, InterruptedException {
+            context.write(CURRTERM, new PairOfWritables<IntWritable, BytesWritable>(new IntWritable(documentFrequency),
+                    new BytesWritable(byteArrayOutputStream.toByteArray())));
+            byteArrayOutputStream.reset();
+            super.cleanup(context);
         }
     }
 
