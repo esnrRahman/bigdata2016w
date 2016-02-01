@@ -174,6 +174,10 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
         @Option(name = "-output", metaVar = "[path]", required = true, usage = "output path")
         public String output;
+
+        @Option(name = "-reducers", metaVar = "[num]", required = false, usage = "number of reducers")
+        public int numReducers = 1;
+
     }
 
     /**
@@ -194,12 +198,13 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         LOG.info("Tool: " + BuildInvertedIndexCompressed.class.getSimpleName());
         LOG.info(" - input path: " + args.input);
         LOG.info(" - output path: " + args.output);
+        LOG.info(" - num reducers: " + args.numReducers);
 
         Job job = Job.getInstance(getConf());
         job.setJobName(BuildInvertedIndexCompressed.class.getSimpleName());
         job.setJarByClass(BuildInvertedIndexCompressed.class);
 
-        job.setNumReduceTasks(1);
+        job.setNumReduceTasks(args.numReducers);
 
         FileInputFormat.setInputPaths(job, new Path(args.input));
         FileOutputFormat.setOutputPath(job, new Path(args.output));

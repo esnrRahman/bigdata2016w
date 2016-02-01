@@ -1,6 +1,8 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment3;
 
 import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.Set;
@@ -12,9 +14,11 @@ import org.apache.hadoop.conf.Configured;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.BytesWritable;
 import org.apache.hadoop.io.IntWritable;
 import org.apache.hadoop.io.MapFile;
 import org.apache.hadoop.io.Text;
+import org.apache.hadoop.io.WritableUtils;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.kohsuke.args4j.CmdLineException;
@@ -108,13 +112,24 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
 
   private ArrayListWritable<PairOfInts> fetchPostings(String term) throws IOException {
     Text key = new Text();
-    PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>> value =
-        new PairOfWritables<IntWritable, ArrayListWritable<PairOfInts>>();
+    PairOfWritables<IntWritable, BytesWritable> value =
+        new PairOfWritables<IntWritable, BytesWritable>();
+    IntWritable df = new IntWritable();
+    ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
+    int docId = 0;
 
     key.set(term);
     index.get(key, value);
 
-    return value.getRightElement();
+    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(value.getRightElement().getBytes());
+    DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
+    for (int i = 0; i < df.get(); i++) {
+      int gappedDocId = WritableUtils.readVInt(dataInputStream);
+      int tf = WritableUtils.readVInt(dataInputStream);
+      docId = gappedDocId + docId;
+      postings.add(new PairOfInts(docId, tf));
+    }
+    return postings;
   }
 
   public String fetchLine(long offset) throws IOException {
