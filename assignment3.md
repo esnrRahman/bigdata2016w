@@ -5,7 +5,10 @@ Output -
 </p>
 
 <p>
-5.9M    ./cs489-2016w-esnrRahman-a3-index-shakespeare
+<ol>
+<li>3.8M	cs489-2016w-esnrRahman-a3-index-shakespeare/part-r-00000</li>
+<li>3.8M	cs489-2016w-esnrRahman-a3-index-shakespeare</li>
+</ol>
 </p>
 
 <h1>Question 2.</h1>
@@ -14,7 +17,10 @@ Output -
 Output -
 </p>
 <p>
-615.5 M  cs489-2016w-esnrRahman-a3-index-wiki
+<ol>
+<li>0        cs489-2016w-esnrRahman-a3-index-wiki/_SUCCESS</li>
+<li>433.4 M  cs489-2016w-esnrRahman-a3-index-wiki/part-r-00000</li>
+</ol>
 </p>
 
 <h1>Question 3.</h1>
