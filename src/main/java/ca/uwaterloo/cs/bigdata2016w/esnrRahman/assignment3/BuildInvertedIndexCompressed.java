@@ -87,7 +87,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
     }
 
     private static class MyReducer extends
-            Reducer<PairOfStringInt, IntWritable, Text, PairOfWritables<IntWritable, BytesWritable>> {
+            Reducer<PairOfStringInt, IntWritable, Text, BytesWritable> {
         private final static IntWritable DF = new IntWritable();
         private static Text PREVTERM = new Text("");
         private static Text CURRTERM = new Text();
@@ -111,8 +111,14 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
             if (!CURRTERM.equals(PREVTERM) && !PREVTERM.toString().isEmpty()) {
                 DF.set(documentFrequency);
-                BytesWritable bytesWritable = new BytesWritable(byteArrayOutputStream.toByteArray());
-                context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(DF, bytesWritable));
+                
+                ByteArrayOutputStream byteArrayOutputStream1 = new ByteArrayOutputStream(byteArrayOutputStream.size() + 4);
+                DataOutputStream dataOutputStream2 = new DataOutputStream(byteArrayOutputStream1);
+                WritableUtils.writeVInt(dataOutputStream2, documentFrequency);
+                dataOutputStream2.write(byteArrayOutputStream.toByteArray());
+                context.write(new Text(PREVTERM), new BytesWritable(byteArrayOutputStream1.toByteArray()));
+                //BytesWritable bytesWritable = new BytesWritable(byteArrayOutputStream.toByteArray());
+                //context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(DF, bytesWritable));
 
                 dGap = 0;
                 lastDocId = 0;
@@ -133,8 +139,17 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
 
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
-            context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(new IntWritable(documentFrequency),
-                    new BytesWritable(byteArrayOutputStream.toByteArray())));
+
+
+            ByteArrayOutputStream byteArrayOutputStream1 = new ByteArrayOutputStream(byteArrayOutputStream.size() + 4);
+            DataOutputStream dataOutputStream2 = new DataOutputStream(byteArrayOutputStream1);
+            WritableUtils.writeVInt(dataOutputStream2, documentFrequency);
+
+            //WritableUtils.writeVInt(outputStream, documentFrequency);
+            context.write(new Text(PREVTERM), new BytesWritable(byteArrayOutputStream1.toByteArray()));
+
+            //context.write(new Text(PREVTERM), new PairOfWritables<IntWritable, BytesWritable>(new IntWritable(documentFrequency),
+            //        new BytesWritable(byteArrayOutputStream.toByteArray())));
             byteArrayOutputStream.reset();
             PREVTERM.set("");
             CURRTERM.set("");
@@ -189,7 +204,7 @@ public class BuildInvertedIndexCompressed extends Configured implements Tool {
         job.setMapOutputKeyClass(PairOfStringInt.class);
         job.setMapOutputValueClass(IntWritable.class);
         job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(PairOfWritables.class);
+        job.setOutputValueClass(BytesWritable.class);
         job.setOutputFormatClass(MapFileOutputFormat.class);
 
         job.setMapperClass(MyMapper.class);

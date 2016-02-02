@@ -132,19 +132,20 @@ public class BooleanRetrievalCompressed extends Configured implements Tool {
     index = new MapFile.Reader(new Path(mainIndexPath + "/part-r-0000" + reducerNumber), mainFs.getConf());
 
     Text key = new Text();
-    PairOfWritables<IntWritable, BytesWritable> value =
-        new PairOfWritables<IntWritable, BytesWritable>();
-    IntWritable df = new IntWritable();
+    BytesWritable value =
+        new BytesWritable();
+    //IntWritable df = new IntWritable();
     ArrayListWritable<PairOfInts> postings = new ArrayListWritable<PairOfInts>();
     int docId = 0;
 
     key.set(term);
     index.get(key, value);
 
-    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(value.getRightElement().getBytes());
+    ByteArrayInputStream byteArrayInputStream = new ByteArrayInputStream(value.getBytes());
     DataInputStream dataInputStream = new DataInputStream(byteArrayInputStream);
-    df.set(value.getLeftElement().get());
-    for (int i = 0; i < df.get(); i++) {
+    int df = WritableUtils.readVInt(dataInputStream);
+    //df.set(value.get());
+    for (int i = 0; i < df; i++) {
       int gappedDocId = WritableUtils.readVInt(dataInputStream);
       int tf = WritableUtils.readVInt(dataInputStream);
       docId = gappedDocId + docId;
