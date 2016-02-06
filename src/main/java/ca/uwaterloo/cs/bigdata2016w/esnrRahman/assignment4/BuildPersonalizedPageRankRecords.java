@@ -24,6 +24,7 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.input.TextInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -46,6 +47,14 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
 
   private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
 
+  private static boolean isSourceNode(int n) {
+    for (int i = 0; i < sourceNodes.size(); i++) {
+      if (n == sourceNodes.get(0)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
@@ -58,7 +67,6 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
         throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
       }
       node.setType(PageRankNode.Type.Complete);
-      node.setPageRank((float) -StrictMath.log(n));
     }
 
     @Override
@@ -67,6 +75,16 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
       String[] arr = t.toString().trim().split("\\s+");
 
       nid.set(Integer.parseInt(arr[0]));
+
+      // Set node mass to be 1 if its the source node
+      // IMPORTANT NOTE FOR UNDERSTANDING PURPOSES: All math is happening in log. So calc.
+      // needs to be thought in log
+      if (isSourceNode(nid.get())) {
+        node.setPageRank((float) 0);
+      } else {
+        node.setPageRank(Float.NEGATIVE_INFINITY);
+      }
+
       if (arr.length == 1) {
         node.setNodeId(Integer.parseInt(arr[0]));
         node.setAdjacencyList(new ArrayListOfIntsWritable());
@@ -144,8 +162,6 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
     // Get the source nodes
     ArrayList<String> sourceStrings = new ArrayList<>();
     sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
-//    LOG.info("Ehsan 1 --> + " + SOURCES);
-//    LOG.info("Ehsan 2 --> + " + sourceStrings);
     for (int i = 0; i < sourceStrings.size(); i++) {
       sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
     }

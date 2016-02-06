@@ -63,6 +63,14 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
   private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
 
+  private static boolean isSourceNode(int n) {
+    for (int i = 0; i < sourceNodes.size(); i++) {
+      if (n == sourceNodes.get(0)) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   private static enum PageRank {
     nodes, edges, massMessages, massMessagesSaved, massMessagesReceived, missingStructure
@@ -119,6 +127,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       context.getCounter(PageRank.massMessages).increment(massMessages);
     }
   }
+
+  // ==================== XXX: DONT GIVE A SHIT TERRITORY ===========================
 
   // Mapper with in-mapper combiner optimization.
   private static class MapWithInMapperCombiningClass extends
@@ -196,6 +206,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       }
     }
   }
+
+  // ===================================================================================
 
   // Combiner: sums partial PageRank contributions and passes node structure along.
   private static class CombineClass extends
@@ -333,11 +345,17 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
         throws IOException, InterruptedException {
       float p = node.getPageRank();
 
-      float jump = (float) (Math.log(ALPHA) - Math.log(nodeCnt));
-      float link = (float) Math.log(1.0f - ALPHA)
-          + sumLogProbs(p, (float) (Math.log(missingMass) - Math.log(nodeCnt)));
+      // This is the formula in action
+      if (isSourceNode(nid.get())) {
+        float jump = (float) (Math.log(ALPHA));
+        float link = (float) Math.log(1.0f - ALPHA)
+                + sumLogProbs(p, (float) (Math.log(missingMass)));
 
-      p = sumLogProbs(jump, link);
+        p = sumLogProbs(jump, link);
+      } else {
+        p = p + (float) Math.log(1.0f - ALPHA);
+      }
+
       node.setPageRank(p);
 
       context.write(nid, node);
