@@ -417,10 +417,11 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     // TODO: Remove inmapCombiner completely
     boolean useInmapCombiner = false;
     boolean useRange = cmdline.hasOption(RANGE);
+    String sourceNodesStr = cmdline.getOptionValue(SOURCES);
 
     // Get the source nodes
     ArrayList<String> sourceStrings = new ArrayList<>();
-    sourceStrings.addAll(Arrays.asList(SOURCES.split(",")));
+    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
     for (int i = 0; i < sourceStrings.size(); i++) {
       sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
     }

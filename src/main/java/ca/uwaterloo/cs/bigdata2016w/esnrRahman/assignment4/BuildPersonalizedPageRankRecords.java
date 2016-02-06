@@ -139,10 +139,13 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
     String inputPath = cmdline.getOptionValue(INPUT);
     String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
+    String sourceNodesStr = cmdline.getOptionValue(SOURCES);
 
     // Get the source nodes
     ArrayList<String> sourceStrings = new ArrayList<>();
-    sourceStrings.addAll(Arrays.asList(SOURCES.split(",")));
+    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
+//    LOG.info("Ehsan 1 --> + " + SOURCES);
+//    LOG.info("Ehsan 2 --> + " + sourceStrings);
     for (int i = 0; i < sourceStrings.size(); i++) {
       sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
     }
