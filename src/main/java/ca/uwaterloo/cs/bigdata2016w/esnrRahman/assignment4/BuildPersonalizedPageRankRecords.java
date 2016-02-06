@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment4;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Arrays;
 
 import org.apache.commons.cli.CommandLine;
@@ -38,10 +39,13 @@ import tl.lin.data.array.ArrayListOfIntsWritable;
  * @author Jimmy Lin
  * @author Michael Schatz
  */
-public class BuildPageRankRecords extends Configured implements Tool {
-  private static final Logger LOG = Logger.getLogger(BuildPageRankRecords.class);
+public class BuildPersonalizedPageRankRecords extends Configured implements Tool {
+  private static final Logger LOG = Logger.getLogger(BuildPersonalizedPageRankRecords.class);
 
   private static final String NODE_CNT_FIELD = "node.cnt";
+
+  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
+
 
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
@@ -89,11 +93,12 @@ public class BuildPageRankRecords extends Configured implements Tool {
     }
   }
 
-  public BuildPageRankRecords() {}
+  public BuildPersonalizedPageRankRecords() {}
 
   private static final String INPUT = "input";
   private static final String OUTPUT = "output";
   private static final String NUM_NODES = "numNodes";
+  private static final String SOURCES = "sources";
 
   /**
    * Runs this tool.
@@ -108,6 +113,8 @@ public class BuildPageRankRecords extends Configured implements Tool {
         .withDescription("output path").create(OUTPUT));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
         .withDescription("number of nodes").create(NUM_NODES));
+    options.addOption(OptionBuilder.withArgName("source nodes").hasArg()
+            .withDescription("source nodes").create(SOURCES));
 
     CommandLine cmdline;
     CommandLineParser parser = new GnuParser();
@@ -119,7 +126,8 @@ public class BuildPageRankRecords extends Configured implements Tool {
       return -1;
     }
 
-    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) || !cmdline.hasOption(NUM_NODES)) {
+    if (!cmdline.hasOption(INPUT) || !cmdline.hasOption(OUTPUT) ||
+        !cmdline.hasOption(NUM_NODES) || !cmdline.hasOption(SOURCES)) {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
@@ -132,18 +140,26 @@ public class BuildPageRankRecords extends Configured implements Tool {
     String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
 
-    LOG.info("Tool name: " + BuildPageRankRecords.class.getSimpleName());
+    // Get the source nodes
+    ArrayList<String> sourceStrings = new ArrayList<>();
+    sourceStrings.addAll(Arrays.asList(SOURCES.split(",")));
+    for (int i = 0; i < sourceStrings.size(); i++) {
+      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
+    }
+
+    LOG.info("Tool name: " + BuildPersonalizedPageRankRecords.class.getSimpleName());
     LOG.info(" - inputDir: " + inputPath);
     LOG.info(" - outputDir: " + outputPath);
     LOG.info(" - numNodes: " + n);
+    LOG.info(" - source nodes: " + sourceNodes);
 
     Configuration conf = getConf();
     conf.setInt(NODE_CNT_FIELD, n);
     conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
 
     Job job = Job.getInstance(conf);
-    job.setJobName(BuildPageRankRecords.class.getSimpleName() + ":" + inputPath);
-    job.setJarByClass(BuildPageRankRecords.class);
+    job.setJobName(BuildPersonalizedPageRankRecords.class.getSimpleName() + ":" + inputPath);
+    job.setJarByClass(BuildPersonalizedPageRankRecords.class);
 
     job.setNumReduceTasks(0);
 
@@ -173,6 +189,6 @@ public class BuildPageRankRecords extends Configured implements Tool {
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
    */
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new BuildPageRankRecords(), args);
+    ToolRunner.run(new BuildPersonalizedPageRankRecords(), args);
   }
 }

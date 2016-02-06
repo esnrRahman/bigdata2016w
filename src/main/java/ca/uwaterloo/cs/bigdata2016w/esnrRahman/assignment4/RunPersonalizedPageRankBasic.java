@@ -3,6 +3,7 @@ package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment4;
 import java.io.IOException;
 import java.text.DecimalFormat;
 import java.text.NumberFormat;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 
@@ -57,8 +58,11 @@ import com.google.common.base.Preconditions;
  * @author Jimmy Lin
  * @author Michael Schatz
  */
-public class RunPageRankBasic extends Configured implements Tool {
-  private static final Logger LOG = Logger.getLogger(RunPageRankBasic.class);
+public class RunPersonalizedPageRankBasic extends Configured implements Tool {
+  private static final Logger LOG = Logger.getLogger(RunPersonalizedPageRankBasic.class);
+
+  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
+
 
   private static enum PageRank {
     nodes, edges, massMessages, massMessagesSaved, massMessagesReceived, missingStructure
@@ -348,17 +352,18 @@ public class RunPageRankBasic extends Configured implements Tool {
    * Dispatches command-line arguments to the tool via the {@code ToolRunner}.
    */
   public static void main(String[] args) throws Exception {
-    ToolRunner.run(new RunPageRankBasic(), args);
+    ToolRunner.run(new RunPersonalizedPageRankBasic(), args);
   }
 
-  public RunPageRankBasic() {}
+  public RunPersonalizedPageRankBasic() {}
 
   private static final String BASE = "base";
   private static final String NUM_NODES = "numNodes";
   private static final String START = "start";
   private static final String END = "end";
   private static final String COMBINER = "useCombiner";
-  private static final String INMAPPER_COMBINER = "useInMapperCombiner";
+//  private static final String INMAPPER_COMBINER = "useInMapperCombiner";
+  private static final String SOURCES = "sources";
   private static final String RANGE = "range";
 
   /**
@@ -369,7 +374,7 @@ public class RunPageRankBasic extends Configured implements Tool {
     Options options = new Options();
 
     options.addOption(new Option(COMBINER, "use combiner"));
-    options.addOption(new Option(INMAPPER_COMBINER, "user in-mapper combiner"));
+//    options.addOption(new Option(INMAPPER_COMBINER, "user in-mapper combiner"));
     options.addOption(new Option(RANGE, "use range partitioner"));
 
     options.addOption(OptionBuilder.withArgName("path").hasArg()
@@ -380,6 +385,8 @@ public class RunPageRankBasic extends Configured implements Tool {
         .withDescription("end iteration").create(END));
     options.addOption(OptionBuilder.withArgName("num").hasArg()
         .withDescription("number of nodes").create(NUM_NODES));
+    options.addOption(OptionBuilder.withArgName("source nodes").hasArg()
+            .withDescription("source nodes").create(SOURCES));
 
     CommandLine cmdline;
     CommandLineParser parser = new GnuParser();
@@ -392,7 +399,8 @@ public class RunPageRankBasic extends Configured implements Tool {
     }
 
     if (!cmdline.hasOption(BASE) || !cmdline.hasOption(START) ||
-        !cmdline.hasOption(END) || !cmdline.hasOption(NUM_NODES)) {
+        !cmdline.hasOption(END) || !cmdline.hasOption(NUM_NODES) ||
+        !cmdline.hasOption(SOURCES)) {
       System.out.println("args: " + Arrays.toString(args));
       HelpFormatter formatter = new HelpFormatter();
       formatter.setWidth(120);
@@ -406,8 +414,16 @@ public class RunPageRankBasic extends Configured implements Tool {
     int s = Integer.parseInt(cmdline.getOptionValue(START));
     int e = Integer.parseInt(cmdline.getOptionValue(END));
     boolean useCombiner = cmdline.hasOption(COMBINER);
-    boolean useInmapCombiner = cmdline.hasOption(INMAPPER_COMBINER);
+    // TODO: Remove inmapCombiner completely
+    boolean useInmapCombiner = false;
     boolean useRange = cmdline.hasOption(RANGE);
+
+    // Get the source nodes
+    ArrayList<String> sourceStrings = new ArrayList<>();
+    sourceStrings.addAll(Arrays.asList(SOURCES.split(",")));
+    for (int i = 0; i < sourceStrings.size(); i++) {
+      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
+    }
 
     LOG.info("Tool name: RunPageRank");
     LOG.info(" - base path: " + basePath);
@@ -417,6 +433,7 @@ public class RunPageRankBasic extends Configured implements Tool {
     LOG.info(" - use combiner: " + useCombiner);
     LOG.info(" - use in-mapper combiner: " + useInmapCombiner);
     LOG.info(" - user range partitioner: " + useRange);
+    LOG.info(" - source nodes: " + sourceNodes);
 
     // Iterate PageRank.
     for (int i = s; i < e; i++) {
@@ -445,7 +462,7 @@ public class RunPageRankBasic extends Configured implements Tool {
       boolean useCombiner, boolean useInMapperCombiner) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase1");
-    job.setJarByClass(RunPageRankBasic.class);
+    job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
     String in = basePath + "/iter" + formatter.format(i);
     String out = basePath + "/iter" + formatter.format(j) + "t";
@@ -518,7 +535,7 @@ public class RunPageRankBasic extends Configured implements Tool {
   private void phase2(int i, int j, float missing, String basePath, int numNodes) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
-    job.setJarByClass(RunPageRankBasic.class);
+    job.setJarByClass(RunPersonalizedPageRankBasic.class);
 
     LOG.info("missing PageRank mass: " + missing);
     LOG.info("number of nodes: " + numNodes);

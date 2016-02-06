@@ -60,7 +60,7 @@ import com.google.common.collect.Maps;
  * <code>/base/path/iter0010</code>.
  * </p>
  *
- * @see RunPageRankBasic
+ * @see RunPersonalizedPageRankBasic
  * @author Jimmy Lin
  * @author Michael Schatz
  */
