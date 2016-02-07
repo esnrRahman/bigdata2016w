@@ -30,6 +30,8 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
+import scala.Int;
+import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectFloat;
 import tl.lin.data.queue.TopScoredObjects;
 
@@ -48,19 +50,29 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
   }
 
   private static class MyMapper extends
-      Mapper<IntWritable, PageRankNode, IntWritable, FloatWritable> {
-    private TopScoredObjects<Integer> queue;
+      Mapper<IntWritable, PageRankNode, PairOfInts, FloatWritable> {
+    private ArrayList<TopScoredObjects<Integer>> queueList;
+    // Creating a pair of source id and node id
+    private PairOfInts sourceNodePair = new PairOfInts();
 
     @Override
     public void setup(Context context) throws IOException {
       int k = context.getConfiguration().getInt("n", 100);
-      queue = new TopScoredObjects<Integer>(k);
+      queueList = new ArrayList<>();
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.add(new TopScoredObjects<Integer>(k));
+      }
+
     }
 
     @Override
     public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
         InterruptedException {
-      queue.add(node.getNodeId(), node.getPageRank());
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.get(i).add(node.getNodeId(), node.getPageRank().get(i));
+      }
     }
 
     @Override
@@ -68,29 +80,36 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        value.set(pair.getRightElement());
-        context.write(key, value);
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
+          sourceNodePair.set(pair.getLeftElement(), i);
+          value.set(pair.getRightElement());
+          context.write(sourceNodePair, value);
+        }
       }
     }
   }
 
   private static class MyReducer extends
-      Reducer<IntWritable, FloatWritable, IntWritable, FloatWritable> {
-    private static TopScoredObjects<Integer> queue;
+      Reducer<PairOfInts, FloatWritable, IntWritable, FloatWritable> {
+    private static ArrayList<TopScoredObjects<Integer>> queueList;
 
     @Override
     public void setup(Context context) throws IOException {
       int k = context.getConfiguration().getInt("n", 100);
-      queue = new TopScoredObjects<Integer>(k);
+      queueList = new ArrayList<>();
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.add(new TopScoredObjects<Integer>(k));
+      }
     }
 
     @Override
-    public void reduce(IntWritable nid, Iterable<FloatWritable> iterable, Context context)
+    public void reduce(PairOfInts sourceNodePair, Iterable<FloatWritable> iterable, Context context)
         throws IOException {
       Iterator<FloatWritable> iter = iterable.iterator();
-      queue.add(nid.get(), iter.next().get());
+      queueList.get(sourceNodePair.getRightElement()).add
+              (sourceNodePair.getLeftElement(), iter.next().get());
 
       // Shouldn't happen. Throw an exception.
       if (iter.hasNext()) {
@@ -103,12 +122,15 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        // Need to take e^val because its in log
-        value.set((float) StrictMath.exp(pair.getRightElement()));
-        context.write(key, value);
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
+          key.set(pair.getLeftElement());
+          // Need to take e^val because its in log
+          value.set((float) StrictMath.exp(pair.getRightElement()));
+          context.write(key, value);
+        }
       }
+
     }
   }
 
@@ -189,7 +211,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setInputFormatClass(SequenceFileInputFormat.class);
     job.setOutputFormatClass(TextOutputFormat.class);
 
-    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputKeyClass(PairOfInts.class);
     job.setMapOutputValueClass(FloatWritable.class);
 
     job.setOutputKeyClass(IntWritable.class);
