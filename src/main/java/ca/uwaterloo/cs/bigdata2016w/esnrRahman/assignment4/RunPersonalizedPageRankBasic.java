@@ -518,19 +518,25 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
   // Run each iteration.
   private void iteratePageRank(int i, int j, String basePath, int numNodes,
       boolean useCombiner, boolean useInMapperCombiner) throws Exception {
+
+    ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
+    ArrayListOfFloatsWritable missingList = new ArrayListOfFloatsWritable();
+
     // Each iteration consists of two phases (two MapReduce jobs).
 
     // Job 1: distribute PageRank mass along outgoing edges.
-    float mass = phase1(i, j, basePath, numNodes, useCombiner, useInMapperCombiner);
+    massList = phase1(i, j, basePath, numNodes, useCombiner, useInMapperCombiner);
 
     // Find out how much PageRank mass got lost at the dangling nodes.
-    float missing = 1.0f - (float) StrictMath.exp(mass);
+    for (int k = 0; k < sourceNodes.size(); k++) {
+      missingList.add(1.0f - (float) StrictMath.exp(massList.get(k)));
+    }
 
     // Job 2: distribute missing mass, take care of random jump factor.
-    phase2(i, j, missing, basePath, numNodes);
+    phase2(i, j, missingList.toString(), basePath, numNodes);
   }
 
-  private float phase1(int i, int j, String basePath, int numNodes,
+  private ArrayListOfFloatsWritable phase1(int i, int j, String basePath, int numNodes,
       boolean useCombiner, boolean useInMapperCombiner) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase1");
@@ -593,18 +599,27 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     job.waitForCompletion(true);
     System.out.println("Job Finished in " + (System.currentTimeMillis() - startTime) / 1000.0 + " seconds");
 
-    float mass = Float.NEGATIVE_INFINITY;
+    ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
+
+    for (int k = 0; k < sourceNodes.size(); k++) {
+      massList.add(Float.NEGATIVE_INFINITY);
+    }
+
     FileSystem fs = FileSystem.get(getConf());
     for (FileStatus f : fs.listStatus(new Path(outm))) {
       FSDataInputStream fin = fs.open(f.getPath());
-      mass = sumLogProbs(mass, fin.readFloat());
+
+      for (int k = 0; k < sourceNodes.size(); k++) {
+        massList.set(k, sumLogProbs(massList.get(k), fin.readFloat()));
+      }
+
       fin.close();
     }
 
-    return mass;
+    return massList;
   }
 
-  private void phase2(int i, int j, float missing, String basePath, int numNodes) throws Exception {
+  private void phase2(int i, int j, String missing, String basePath, int numNodes) throws Exception {
     Job job = Job.getInstance(getConf());
     job.setJobName("PageRank:Basic:iteration" + j + ":Phase2");
     job.setJarByClass(RunPersonalizedPageRankBasic.class);
@@ -621,7 +636,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
     job.getConfiguration().setBoolean("mapred.map.tasks.speculative.execution", false);
     job.getConfiguration().setBoolean("mapred.reduce.tasks.speculative.execution", false);
-    job.getConfiguration().setFloat("MissingMass", (float) missing);
+    job.getConfiguration().setStrings("MissingMass", missing);
     job.getConfiguration().setInt("NodeCount", numNodes);
 
     job.setNumReduceTasks(0);
