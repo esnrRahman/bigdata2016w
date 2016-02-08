@@ -48,15 +48,6 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
 
   private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
 
-  private static boolean isSourceNode(int n) {
-    for (int i = 0; i < sourceNodes.size(); i++) {
-      if (n == sourceNodes.get(i)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
     private static final PageRankNode node = new PageRankNode();
@@ -82,7 +73,7 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
       // needs to be thought in log
       ArrayListOfFloatsWritable pageRankList = new ArrayListOfFloatsWritable();
       for (int i = 0; i < sourceNodes.size(); i++) {
-        if (isSourceNode(nid.get())) {
+        if (nid.get() == sourceNodes.get(i)) {
           pageRankList.add((float) 0);
         } else {
           pageRankList.add(Float.NEGATIVE_INFINITY);
