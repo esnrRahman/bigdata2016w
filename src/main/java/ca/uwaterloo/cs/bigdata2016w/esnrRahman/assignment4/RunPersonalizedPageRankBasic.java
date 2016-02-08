@@ -29,6 +29,7 @@ import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.mapreduce.lib.output.SequenceFileOutputFormat;
+import org.apache.hadoop.mapreduce.lib.output.TextOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
@@ -96,6 +97,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       // Get source node information from context
       String sourceNodesArray[] = context.getConfiguration().getStrings("sourceNodes");
       sourceNodesSize = sourceNodesArray.length;
+
+      LOG.info("EHSAN POINT 11: Size is -> " + sourceNodesSize);
+
     }
 
 
@@ -103,7 +107,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     public void map(IntWritable nid, PageRankNode node, Context context)
         throws IOException, InterruptedException {
 
-      ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
       // Pass along node structure.
       intermediateStructure.setNodeId(node.getNodeId());
       intermediateStructure.setType(PageRankNode.Type.Structure);
@@ -115,14 +118,17 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       // Distribute PageRank mass to neighbors (along outgoing edges).
       if (node.getAdjacenyList().size() > 0) {
+
+        ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
+
         // Each neighbor gets an equal share of PageRank mass.
         ArrayListOfIntsWritable list = node.getAdjacenyList();
+
+        context.getCounter(PageRank.edges).increment(list.size());
 
         for (int i = 0; i < sourceNodesSize; i++) {
           massList.add(node.getPageRank().get(i) - (float) StrictMath.log(list.size()));
         }
-
-        context.getCounter(PageRank.edges).increment(list.size());
 
         // Iterate over neighbors.
         for (int i = 0; i < list.size(); i++) {
@@ -527,7 +533,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     int n = Integer.parseInt(cmdline.getOptionValue(NUM_NODES));
     int s = Integer.parseInt(cmdline.getOptionValue(START));
     int e = Integer.parseInt(cmdline.getOptionValue(END));
-    boolean useCombiner = cmdline.hasOption(COMBINER);
+    boolean useCombiner = false;
     // TODO: Remove inmapCombiner completely
     boolean useInmapCombiner = false;
     boolean useRange = cmdline.hasOption(RANGE);
@@ -564,6 +570,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
     int sourceNodesListSize = Arrays.asList(sourceNodesStr.split(",")).size();
 
+    LOG.info("EHSAN POINT 10: Size is -> " + sourceNodesListSize);
+
     ArrayListOfFloatsWritable massList;
     ArrayListOfFloatsWritable missingList = new ArrayListOfFloatsWritable();
 
@@ -587,9 +595,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       missingMassesStr += "," + missingList.get(k);
     }
 
-//    LOG.info("EHSAN POINT 7 -> " + massList.toString());
+    LOG.info("EHSAN POINT 7 -> " + massList.toString());
 
-//    LOG.info("EHSAN POINT 8 -> " + missingMassesStr);
+    LOG.info("EHSAN POINT 8 -> " + missingMassesStr);
 
     // Job 2: distribute missing mass, take care of random jump factor.
     phase2(i, j, missingMassesStr, basePath, numNodes, sourceNodesStr);
@@ -673,7 +681,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       for (int k = 0; k < sourceNodesListSize; k++) {
         massList.set(k, sumLogProbs(massList.get(k), fin.readFloat()));
-//        LOG.info("EHSAN POINT 9 -> " + massList.get(k));
+        LOG.info("EHSAN POINT 9 -> " + massList.get(k));
       }
 
       fin.close();
