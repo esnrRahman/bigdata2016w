@@ -1,6 +1,10 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment4;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -14,6 +18,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
@@ -179,9 +184,10 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     }
 
     String inputPath = cmdline.getOptionValue(INPUT);
-    String outputPath = cmdline.getOptionValue(OUTPUT);
+    String actualOutputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(TOP));
     String sourceNodesStr = cmdline.getOptionValue(SOURCES);
+    String tempOutputPath = "unformattedDir";
 
     // Get the source nodes
     ArrayList<String> sourceStrings = new ArrayList<>();
@@ -192,7 +198,8 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
 
     LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
-    LOG.info(" - output: " + outputPath);
+    LOG.info(" - actual output: " + actualOutputPath);
+    LOG.info(" - temp output: " + tempOutputPath);
     LOG.info(" - top: " + n);
 
     Configuration conf = getConf();
@@ -206,7 +213,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setNumReduceTasks(1);
 
     FileInputFormat.addInputPath(job, new Path(inputPath));
-    FileOutputFormat.setOutputPath(job, new Path(outputPath));
+    FileOutputFormat.setOutputPath(job, new Path(tempOutputPath));
 
     job.setInputFormatClass(SequenceFileInputFormat.class);
     job.setOutputFormatClass(TextOutputFormat.class);
@@ -220,11 +227,42 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setMapperClass(MyMapper.class);
     job.setReducerClass(MyReducer.class);
 
+    FileSystem fs = FileSystem.get(conf);
+
     // Delete the output directory if it exists already.
-    FileSystem.get(conf).delete(new Path(outputPath), true);
+    fs.delete(new Path(tempOutputPath), true);
+    fs.delete(new Path(actualOutputPath), true);
 
     job.waitForCompletion(true);
 
+    Path writePath = new Path(actualOutputPath);
+    fs.mkdirs(writePath);
+    Path readPath = new Path(tempOutputPath + "/part-r-00000");
+    writePath = new Path(actualOutputPath + "/part-r-00000");
+    BufferedReader readBr = new BufferedReader(new InputStreamReader(fs.open(readPath)));
+    BufferedWriter writeBr = new BufferedWriter(new OutputStreamWriter(fs.create(writePath, true)));
+    String readLine;
+    String writeLine = "";
+    readLine = readBr.readLine();
+    int count = 1;
+    boolean firstTime = true;
+    while(readLine != null) {
+      if (count == n || firstTime) {
+        writeLine = "\nSource: " + readLine.split("\\t")[0] + "\n";
+        if (!firstTime) {
+          count = 0;
+        }
+        firstTime = false;
+      } else {
+        writeLine = readLine.split("\\t")[1] + " " + readLine.split("\\t")[0] + "\n";
+        count++;
+      }
+      writeBr.write(writeLine);
+      readLine = readBr.readLine();
+    }
+    readBr.close();
+    writeBr.close();
+    fs.delete(new Path(tempOutputPath), true);
     return 0;
   }
 

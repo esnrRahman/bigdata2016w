@@ -98,7 +98,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       String sourceNodesArray[] = context.getConfiguration().getStrings("sourceNodes");
       sourceNodesSize = sourceNodesArray.length;
 
-      LOG.info("EHSAN POINT 11: Size is -> " + sourceNodesSize);
+//      LOG.info("EHSAN POINT 11: Size is -> " + sourceNodesSize);
 
     }
 
@@ -106,6 +106,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
     @Override
     public void map(IntWritable nid, PageRankNode node, Context context)
         throws IOException, InterruptedException {
+
+      ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
 
       // Pass along node structure.
       intermediateStructure.setNodeId(node.getNodeId());
@@ -118,8 +120,6 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       // Distribute PageRank mass to neighbors (along outgoing edges).
       if (node.getAdjacenyList().size() > 0) {
-
-        ArrayListOfFloatsWritable massList = new ArrayListOfFloatsWritable();
 
         // Each neighbor gets an equal share of PageRank mass.
         ArrayListOfIntsWritable list = node.getAdjacenyList();
@@ -297,6 +297,8 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       }
     }
   }
+
+  // ================== FURTHER EXTENDED THE DONT GIVE A SHIT TERRITORY ======================
 
   // Reduce: sums incoming PageRank contributions, rewrite graph structure.
   private static class ReduceClass extends
@@ -570,7 +572,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
     int sourceNodesListSize = Arrays.asList(sourceNodesStr.split(",")).size();
 
-    LOG.info("EHSAN POINT 10: Size is -> " + sourceNodesListSize);
+//    LOG.info("EHSAN POINT 10: Size is -> " + sourceNodesListSize);
 
     ArrayListOfFloatsWritable massList;
     ArrayListOfFloatsWritable missingList = new ArrayListOfFloatsWritable();
@@ -595,9 +597,9 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       missingMassesStr += "," + missingList.get(k);
     }
 
-    LOG.info("EHSAN POINT 7 -> " + massList.toString());
+//    LOG.info("EHSAN POINT 7 -> " + massList.toString());
 
-    LOG.info("EHSAN POINT 8 -> " + missingMassesStr);
+//    LOG.info("EHSAN POINT 8 -> " + missingMassesStr);
 
     // Job 2: distribute missing mass, take care of random jump factor.
     phase2(i, j, missingMassesStr, basePath, numNodes, sourceNodesStr);
@@ -681,7 +683,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
 
       for (int k = 0; k < sourceNodesListSize; k++) {
         massList.set(k, sumLogProbs(massList.get(k), fin.readFloat()));
-        LOG.info("EHSAN POINT 9 -> " + massList.get(k));
+//        LOG.info("EHSAN POINT 9 -> " + massList.get(k));
       }
 
       fin.close();
