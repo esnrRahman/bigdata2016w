@@ -5,6 +5,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -244,18 +245,24 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     String readLine;
     String writeLine = "";
     readLine = readBr.readLine();
-    int count = 1;
+    int count = 0;
     boolean firstTime = true;
+    DecimalFormat fiveDForm = new DecimalFormat("#.##");
     while(readLine != null) {
+      String[] setOfWords = readLine.split("\\t");
+      String firstWord = setOfWords[0];
+      String secondWord = setOfWords[1];
       if (count == n || firstTime) {
-        writeLine = "\nSource: " + readLine.split("\\t")[0] + "\n";
-        if (!firstTime) {
-          count = 0;
-        }
+        writeLine = "Source: " + firstWord + "\n";
+        count = 1;
         firstTime = false;
       } else {
-        writeLine = readLine.split("\\t")[1] + " " + readLine.split("\\t")[0] + "\n";
+        float f = Float.parseFloat(secondWord);
+        writeLine = Float.valueOf(fiveDForm.format(f)) + " " + firstWord + "\n";
         count++;
+        if (count == n) {
+          writeLine += "\n";
+        }
       }
       writeBr.write(writeLine);
       readLine = readBr.readLine();
