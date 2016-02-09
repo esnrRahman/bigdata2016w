@@ -185,10 +185,9 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     }
 
     String inputPath = cmdline.getOptionValue(INPUT);
-    String actualOutputPath = cmdline.getOptionValue(OUTPUT);
+    String outputPath = cmdline.getOptionValue(OUTPUT);
     int n = Integer.parseInt(cmdline.getOptionValue(TOP));
     String sourceNodesStr = cmdline.getOptionValue(SOURCES);
-    String tempOutputPath = "unformattedDir";
 
     // Get the source nodes
     ArrayList<String> sourceStrings = new ArrayList<>();
@@ -199,8 +198,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
 
     LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
-    LOG.info(" - actual output: " + actualOutputPath);
-    LOG.info(" - temp output: " + tempOutputPath);
+    LOG.info(" - actual output: " + outputPath);
     LOG.info(" - top: " + n);
 
     Configuration conf = getConf();
@@ -214,7 +212,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setNumReduceTasks(1);
 
     FileInputFormat.addInputPath(job, new Path(inputPath));
-    FileOutputFormat.setOutputPath(job, new Path(tempOutputPath));
+    FileOutputFormat.setOutputPath(job, new Path(outputPath));
 
     job.setInputFormatClass(SequenceFileInputFormat.class);
     job.setOutputFormatClass(TextOutputFormat.class);
@@ -231,45 +229,61 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     FileSystem fs = FileSystem.get(conf);
 
     // Delete the output directory if it exists already.
-    fs.delete(new Path(tempOutputPath), true);
-    fs.delete(new Path(actualOutputPath), true);
+    fs.delete(new Path(outputPath), true);
 
     job.waitForCompletion(true);
 
-    Path writePath = new Path(actualOutputPath);
-    fs.mkdirs(writePath);
-    Path readPath = new Path(tempOutputPath + "/part-r-00000");
-    writePath = new Path(actualOutputPath + "/part-r-00000");
+//    Path writePath = new Path(actualOutputPath);
+//    fs.mkdirs(writePath);
+    Path readPath = new Path(outputPath + "/part-r-00000");
+//    writePath = new Path(actualOutputPath + "/part-r-00000");
     BufferedReader readBr = new BufferedReader(new InputStreamReader(fs.open(readPath)));
-    BufferedWriter writeBr = new BufferedWriter(new OutputStreamWriter(fs.create(writePath, true)));
+//    BufferedWriter writeBr = new BufferedWriter(new OutputStreamWriter(fs.create(writePath, true)));
     String readLine;
-    String writeLine = "";
+//    String writeLine = "";
+//    String sourceTitle = "";
     readLine = readBr.readLine();
-    int count = 0;
-    boolean firstTime = true;
-    DecimalFormat fiveDForm = new DecimalFormat("#.##");
+    int count = 1;
+//    boolean firstTime = true;
+//    DecimalFormat fiveDForm = new DecimalFormat("#.#####");
     while(readLine != null) {
       String[] setOfWords = readLine.split("\\t");
       String firstWord = setOfWords[0];
       String secondWord = setOfWords[1];
-      if (count == n || firstTime) {
-        writeLine = "Source: " + firstWord + "\n";
-        count = 1;
-        firstTime = false;
-      } else {
-        float f = Float.parseFloat(secondWord);
-        writeLine = Float.valueOf(fiveDForm.format(f)) + " " + firstWord + "\n";
+      float f = Float.parseFloat(secondWord);
+      if(count == 1) {
+        System.out.println("\nSource: " + firstWord);
+        System.out.println(String.format("%.5f %s", f, firstWord));
         count++;
-        if (count == n) {
-          writeLine += "\n";
-        }
+      } else if(count == n) {
+        System.out.println(String.format("%.5f %s", f, firstWord));
+        count = 1;
+      } else {
+        System.out.println(String.format("%.5f %s", f, firstWord));
+        count++;
       }
-      writeBr.write(writeLine);
+//      writeLine = Float.valueOf(fiveDForm.format(f)) + " " + firstWord + "\n";
+//      count++;
+//      if (firstTime) {
+//        sourceTitle = "Source: " + firstWord + "\n";
+//        writeLine = sourceTitle + writeLine;
+//        firstTime = false;
+//      } else {
+//        if (count == 1) {
+//          sourceTitle = "Source: " + firstWord + "\n";
+//          writeLine = sourceTitle + writeLine;
+//          firstTime = false;
+//        }
+//      }
+//      if (count == n) {
+//        writeLine += "\n";
+//      }
+
+//      writeBr.write(writeLine);
       readLine = readBr.readLine();
     }
     readBr.close();
-    writeBr.close();
-    fs.delete(new Path(tempOutputPath), true);
+//    writeBr.close();
     return 0;
   }
 
