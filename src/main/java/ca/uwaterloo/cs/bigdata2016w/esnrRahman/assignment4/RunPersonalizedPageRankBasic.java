@@ -458,7 +458,7 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
                     + sumLogProbs(p.get(i), (float) (Math.log(0)));
           } else {
             link = (float) Math.log(1.0f - ALPHA)
-                    + sumLogProbs(p.get(i), (float) (missingMassList.get(i)));
+                    + sumLogProbs(p.get(i), (float) Math.log(missingMassList.get(i)));
           }
           p.set(i, sumLogProbs(jump, link));
         } else {
