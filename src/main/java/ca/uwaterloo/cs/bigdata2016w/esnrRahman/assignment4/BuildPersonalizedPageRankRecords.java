@@ -29,6 +29,7 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
+import tl.lin.data.array.ArrayListOfFloatsWritable;
 import tl.lin.data.array.ArrayListOfIntsWritable;
 
 /**
@@ -46,15 +47,6 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
   private static final String NODE_CNT_FIELD = "node.cnt";
 
   private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
-
-  private static boolean isSourceNode(int n) {
-    for (int i = 0; i < sourceNodes.size(); i++) {
-      if (n == sourceNodes.get(0)) {
-        return true;
-      }
-    }
-    return false;
-  }
 
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
@@ -79,11 +71,16 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
       // Set node mass to be 1 if its the source node
       // IMPORTANT NOTE FOR UNDERSTANDING PURPOSES: All math is happening in log. So calc.
       // needs to be thought in log
-      if (isSourceNode(nid.get())) {
-        node.setPageRank((float) 0);
-      } else {
-        node.setPageRank(Float.NEGATIVE_INFINITY);
+      ArrayListOfFloatsWritable pageRankList = new ArrayListOfFloatsWritable();
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        if (nid.get() == sourceNodes.get(i)) {
+          pageRankList.add((float) 0);
+        } else {
+          pageRankList.add(Float.NEGATIVE_INFINITY);
+        }
       }
+
+      node.setPageRank(pageRankList);
 
       if (arr.length == 1) {
         node.setNodeId(Integer.parseInt(arr[0]));

@@ -1,6 +1,11 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment4;
 
+import java.io.BufferedReader;
+import java.io.BufferedWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
@@ -14,6 +19,7 @@ import org.apache.commons.cli.Options;
 import org.apache.commons.cli.ParseException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.FloatWritable;
@@ -30,6 +36,8 @@ import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.log4j.Logger;
 
+import scala.Int;
+import tl.lin.data.pair.PairOfInts;
 import tl.lin.data.pair.PairOfObjectFloat;
 import tl.lin.data.queue.TopScoredObjects;
 
@@ -48,19 +56,29 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
   }
 
   private static class MyMapper extends
-      Mapper<IntWritable, PageRankNode, IntWritable, FloatWritable> {
-    private TopScoredObjects<Integer> queue;
+      Mapper<IntWritable, PageRankNode, PairOfInts, FloatWritable> {
+    private ArrayList<TopScoredObjects<Integer>> queueList;
+    // Creating a pair of source id and node id
+    private PairOfInts sourceNodePair = new PairOfInts();
 
     @Override
     public void setup(Context context) throws IOException {
       int k = context.getConfiguration().getInt("n", 100);
-      queue = new TopScoredObjects<Integer>(k);
+      queueList = new ArrayList<>();
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.add(new TopScoredObjects<Integer>(k));
+      }
+
     }
 
     @Override
     public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
         InterruptedException {
-      queue.add(node.getNodeId(), node.getPageRank());
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.get(i).add(node.getNodeId(), node.getPageRank().get(i));
+      }
     }
 
     @Override
@@ -68,29 +86,36 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        value.set(pair.getRightElement());
-        context.write(key, value);
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
+          sourceNodePair.set(pair.getLeftElement(), i);
+          value.set(pair.getRightElement());
+          context.write(sourceNodePair, value);
+        }
       }
     }
   }
 
   private static class MyReducer extends
-      Reducer<IntWritable, FloatWritable, IntWritable, FloatWritable> {
-    private static TopScoredObjects<Integer> queue;
+      Reducer<PairOfInts, FloatWritable, IntWritable, FloatWritable> {
+    private static ArrayList<TopScoredObjects<Integer>> queueList;
 
     @Override
     public void setup(Context context) throws IOException {
       int k = context.getConfiguration().getInt("n", 100);
-      queue = new TopScoredObjects<Integer>(k);
+      queueList = new ArrayList<>();
+
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        queueList.add(new TopScoredObjects<Integer>(k));
+      }
     }
 
     @Override
-    public void reduce(IntWritable nid, Iterable<FloatWritable> iterable, Context context)
+    public void reduce(PairOfInts sourceNodePair, Iterable<FloatWritable> iterable, Context context)
         throws IOException {
       Iterator<FloatWritable> iter = iterable.iterator();
-      queue.add(nid.get(), iter.next().get());
+      queueList.get(sourceNodePair.getRightElement()).add
+              (sourceNodePair.getLeftElement(), iter.next().get());
 
       // Shouldn't happen. Throw an exception.
       if (iter.hasNext()) {
@@ -103,12 +128,15 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (PairOfObjectFloat<Integer> pair : queue.extractAll()) {
-        key.set(pair.getLeftElement());
-        // Need to take e^val because its in log
-        value.set((float) StrictMath.exp(pair.getRightElement()));
-        context.write(key, value);
+      for (int i = 0; i < sourceNodes.size(); i++) {
+        for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
+          key.set(pair.getLeftElement());
+          // Need to take e^val because its in log
+          value.set((float) StrictMath.exp(pair.getRightElement()));
+          context.write(key, value);
+        }
       }
+
     }
   }
 
@@ -170,7 +198,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
 
     LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
-    LOG.info(" - output: " + outputPath);
+    LOG.info(" - actual output: " + outputPath);
     LOG.info(" - top: " + n);
 
     Configuration conf = getConf();
@@ -189,7 +217,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setInputFormatClass(SequenceFileInputFormat.class);
     job.setOutputFormatClass(TextOutputFormat.class);
 
-    job.setMapOutputKeyClass(IntWritable.class);
+    job.setMapOutputKeyClass(PairOfInts.class);
     job.setMapOutputValueClass(FloatWritable.class);
 
     job.setOutputKeyClass(IntWritable.class);
@@ -198,11 +226,64 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     job.setMapperClass(MyMapper.class);
     job.setReducerClass(MyReducer.class);
 
+    FileSystem fs = FileSystem.get(conf);
+
     // Delete the output directory if it exists already.
-    FileSystem.get(conf).delete(new Path(outputPath), true);
+    fs.delete(new Path(outputPath), true);
 
     job.waitForCompletion(true);
 
+//    Path writePath = new Path(actualOutputPath);
+//    fs.mkdirs(writePath);
+    Path readPath = new Path(outputPath + "/part-r-00000");
+//    writePath = new Path(actualOutputPath + "/part-r-00000");
+    BufferedReader readBr = new BufferedReader(new InputStreamReader(fs.open(readPath)));
+//    BufferedWriter writeBr = new BufferedWriter(new OutputStreamWriter(fs.create(writePath, true)));
+    String readLine;
+//    String writeLine = "";
+//    String sourceTitle = "";
+    readLine = readBr.readLine();
+    int count = 1;
+//    boolean firstTime = true;
+//    DecimalFormat fiveDForm = new DecimalFormat("#.#####");
+    while(readLine != null) {
+      String[] setOfWords = readLine.split("\\t");
+      String firstWord = setOfWords[0];
+      String secondWord = setOfWords[1];
+      float f = Float.parseFloat(secondWord);
+      if(count == 1) {
+        System.out.println("\nSource: " + firstWord);
+        System.out.println(String.format("%.5f %s", f, firstWord));
+        count++;
+      } else if(count == n) {
+        System.out.println(String.format("%.5f %s", f, firstWord));
+        count = 1;
+      } else {
+        System.out.println(String.format("%.5f %s", f, firstWord));
+        count++;
+      }
+//      writeLine = Float.valueOf(fiveDForm.format(f)) + " " + firstWord + "\n";
+//      count++;
+//      if (firstTime) {
+//        sourceTitle = "Source: " + firstWord + "\n";
+//        writeLine = sourceTitle + writeLine;
+//        firstTime = false;
+//      } else {
+//        if (count == 1) {
+//          sourceTitle = "Source: " + firstWord + "\n";
+//          writeLine = sourceTitle + writeLine;
+//          firstTime = false;
+//        }
+//      }
+//      if (count == n) {
+//        writeLine += "\n";
+//      }
+
+//      writeBr.write(writeLine);
+      readLine = readBr.readLine();
+    }
+    readBr.close();
+//    writeBr.close();
     return 0;
   }
 
