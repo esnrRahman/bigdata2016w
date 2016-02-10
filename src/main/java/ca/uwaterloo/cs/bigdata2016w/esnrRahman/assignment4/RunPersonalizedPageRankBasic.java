@@ -450,10 +450,16 @@ public class RunPersonalizedPageRankBasic extends Configured implements Tool {
       // This is the formula in action
       for (int i = 0; i < sourceNodes.size(); i++) {
         if (sourceNodes.get(i) == nid.get()) {
-          float jump = (float) (Math.log(ALPHA));
-          float link = (float) Math.log(1.0f - ALPHA)
-                  + sumLogProbs(p.get(i), (float) (Math.log(missingMassList.get(i))));
 
+          float jump = (float) (Math.log(ALPHA));
+          float link = Float.NEGATIVE_INFINITY;
+          if (missingMassList.get(i) < 0) {
+            link = (float) Math.log(1.0f - ALPHA)
+                    + sumLogProbs(p.get(i), (float) (Math.log(0)));
+          } else {
+            link = (float) Math.log(1.0f - ALPHA)
+                    + sumLogProbs(p.get(i), (float) Math.log(missingMassList.get(i)));
+          }
           p.set(i, sumLogProbs(jump, link));
         } else {
           p.set(i, p.get(i) + (float) Math.log(1.0f - ALPHA));
