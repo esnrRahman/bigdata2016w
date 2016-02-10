@@ -44,16 +44,16 @@ import tl.lin.data.queue.TopScoredObjects;
 public class ExtractTopPersonalizedPageRankNodes extends Configured implements Tool {
   private static final Logger LOG = Logger.getLogger(ExtractTopPersonalizedPageRankNodes.class);
 
-  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
-
-  private static boolean isSourceNode(int n) {
-    for (int i = 0; i < sourceNodes.size(); i++) {
-      if (n == sourceNodes.get(0)) {
-        return true;
-      }
-    }
-    return false;
-  }
+//  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
+//
+//  private static boolean isSourceNode(int n) {
+//    for (int i = 0; i < sourceNodes.size(); i++) {
+//      if (n == sourceNodes.get(0)) {
+//        return true;
+//      }
+//    }
+//    return false;
+//  }
 
   private static class MyMapper extends
       Mapper<IntWritable, PageRankNode, PairOfInts, FloatWritable> {
@@ -61,12 +61,18 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     // Creating a pair of source id and node id
     private PairOfInts sourceNodePair = new PairOfInts();
 
+    private static int sourceNodesSize = -1;
+
     @Override
     public void setup(Context context) throws IOException {
+      // Get source node information from context
+      String sourceNodesArray[] = context.getConfiguration().getStrings("sourceNodes");
+      sourceNodesSize = sourceNodesArray.length;
+
       int k = context.getConfiguration().getInt("n", 100);
       queueList = new ArrayList<>();
 
-      for (int i = 0; i < sourceNodes.size(); i++) {
+      for (int i = 0; i < sourceNodesSize; i++) {
         queueList.add(new TopScoredObjects<Integer>(k));
       }
 
@@ -76,7 +82,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     public void map(IntWritable nid, PageRankNode node, Context context) throws IOException,
         InterruptedException {
 
-      for (int i = 0; i < sourceNodes.size(); i++) {
+      for (int i = 0; i < sourceNodesSize; i++) {
         queueList.get(i).add(node.getNodeId(), node.getPageRank().get(i));
       }
     }
@@ -86,7 +92,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (int i = 0; i < sourceNodes.size(); i++) {
+      for (int i = 0; i < sourceNodesSize; i++) {
         for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
           sourceNodePair.set(pair.getLeftElement(), i);
           value.set(pair.getRightElement());
@@ -100,12 +106,19 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       Reducer<PairOfInts, FloatWritable, IntWritable, FloatWritable> {
     private static ArrayList<TopScoredObjects<Integer>> queueList;
 
+    private static int sourceNodesSize = -1;
+
+
     @Override
     public void setup(Context context) throws IOException {
+      // Get source node information from context
+      String sourceNodesArray[] = context.getConfiguration().getStrings("sourceNodes");
+      sourceNodesSize = sourceNodesArray.length;
+
       int k = context.getConfiguration().getInt("n", 100);
       queueList = new ArrayList<>();
 
-      for (int i = 0; i < sourceNodes.size(); i++) {
+      for (int i = 0; i < sourceNodesSize; i++) {
         queueList.add(new TopScoredObjects<Integer>(k));
       }
     }
@@ -128,7 +141,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
       IntWritable key = new IntWritable();
       FloatWritable value = new FloatWritable();
 
-      for (int i = 0; i < sourceNodes.size(); i++) {
+      for (int i = 0; i < sourceNodesSize; i++) {
         for (PairOfObjectFloat<Integer> pair : queueList.get(i).extractAll()) {
           key.set(pair.getLeftElement());
           // Need to take e^val because its in log
@@ -190,11 +203,11 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     String sourceNodesStr = cmdline.getOptionValue(SOURCES);
 
     // Get the source nodes
-    ArrayList<String> sourceStrings = new ArrayList<>();
-    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
-    for (int i = 0; i < sourceStrings.size(); i++) {
-      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
-    }
+//    ArrayList<String> sourceStrings = new ArrayList<>();
+//    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
+//    for (int i = 0; i < sourceStrings.size(); i++) {
+//      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
+//    }
 
     LOG.info("Tool name: " + ExtractTopPersonalizedPageRankNodes.class.getSimpleName());
     LOG.info(" - input: " + inputPath);
@@ -204,6 +217,7 @@ public class ExtractTopPersonalizedPageRankNodes extends Configured implements T
     Configuration conf = getConf();
     conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
     conf.setInt("n", n);
+    conf.setStrings("sourceNodes", sourceNodesStr);
 
     Job job = Job.getInstance(conf);
     job.setJobName(ExtractTopPersonalizedPageRankNodes.class.getName() + ":" + inputPath);
