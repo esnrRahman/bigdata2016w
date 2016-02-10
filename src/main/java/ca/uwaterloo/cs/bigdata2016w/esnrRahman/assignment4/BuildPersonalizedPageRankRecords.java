@@ -46,14 +46,26 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
 
   private static final String NODE_CNT_FIELD = "node.cnt";
 
-  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
+//  private static final ArrayList<Integer> sourceNodes = new ArrayList<>();
 
   private static class MyMapper extends Mapper<LongWritable, Text, IntWritable, PageRankNode> {
     private static final IntWritable nid = new IntWritable();
     private static final PageRankNode node = new PageRankNode();
 
+    private static int sourceNodesSize = -1;
+    private ArrayList<Integer> sourceNodes = new ArrayList<>();
+
     @Override
     public void setup(Mapper<LongWritable, Text, IntWritable, PageRankNode>.Context context) {
+      // Get source node information from context
+      String sourceNodesArray[] = context.getConfiguration().getStrings("sourceNodes");
+      sourceNodesSize = sourceNodesArray.length;
+
+      //  Get the source nodes
+      for (int i = 0; i < sourceNodesSize; i++) {
+        sourceNodes.add(Integer.parseInt(sourceNodesArray[i]));
+      }
+
       int n = context.getConfiguration().getInt(NODE_CNT_FIELD, 0);
       if (n == 0) {
         throw new RuntimeException(NODE_CNT_FIELD + " cannot be 0!");
@@ -157,21 +169,22 @@ public class BuildPersonalizedPageRankRecords extends Configured implements Tool
     String sourceNodesStr = cmdline.getOptionValue(SOURCES);
 
     // Get the source nodes
-    ArrayList<String> sourceStrings = new ArrayList<>();
-    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
-    for (int i = 0; i < sourceStrings.size(); i++) {
-      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
-    }
+//    ArrayList<String> sourceStrings = new ArrayList<>();
+//    sourceStrings.addAll(Arrays.asList(sourceNodesStr.split(",")));
+//    for (int i = 0; i < sourceStrings.size(); i++) {
+//      sourceNodes.add(Integer.parseInt(sourceStrings.get(i)));
+//    }
 
     LOG.info("Tool name: " + BuildPersonalizedPageRankRecords.class.getSimpleName());
     LOG.info(" - inputDir: " + inputPath);
     LOG.info(" - outputDir: " + outputPath);
     LOG.info(" - numNodes: " + n);
-    LOG.info(" - source nodes: " + sourceNodes);
+//    LOG.info(" - source nodes: " + sourceNodes);
 
     Configuration conf = getConf();
     conf.setInt(NODE_CNT_FIELD, n);
     conf.setInt("mapred.min.split.size", 1024 * 1024 * 1024);
+    conf.setStrings("sourceNodes", sourceNodesStr);
 
     Job job = Job.getInstance(conf);
     job.setJobName(BuildPersonalizedPageRankRecords.class.getSimpleName() + ":" + inputPath);
