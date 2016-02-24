@@ -69,6 +69,6 @@ Q6 5
 AC 5
 LC 5
 
-Total 5
+Total 50
 
 Comments
