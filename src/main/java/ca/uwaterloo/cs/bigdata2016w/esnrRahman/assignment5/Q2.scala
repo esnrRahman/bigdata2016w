@@ -27,7 +27,7 @@ object Q2 {
     val lineItemtextFile = sc.textFile(args.input() + "/lineitem.tbl")
     val orderTextFile = sc.textFile(args.input() + "/orders.tbl")
 
-    val numberOfItems = lineItemtextFile
+    val shipDates = lineItemtextFile
       .flatMap(line => {
         val lineItemTable = line.split("\\|")
         val orderKey = lineItemTable(0)
@@ -42,8 +42,34 @@ object Q2 {
         if (shipDate == queriedShipDate) List((orderKey,shipDate)) else List()
       })
 
-    for (i <- numberOfItems) {
-      println("(" + i._2 + "," + i._1 + ")")
+//    for (i <- shipDates) {
+//      println("(" + i._2 + "," + i._1 + ")")
+//    }
+
+    val clerkNumber = orderTextFile
+      .flatMap(line => {
+        val orderTable = line.split("\\|")
+        val orderKey = orderTable(0)
+        val clerkNumber = orderTable(6)
+        List((orderKey, clerkNumber))
+      })
+
+//    for (i <- clerkNumber) {
+//      println("(" + i._2 + "," + i._1 + ")")
+//    }
+
+    val combinedTable = shipDates.cogroup(clerkNumber)
+        .flatMap(tuple => {
+          val orderKey = tuple._1
+          val tempList = tuple._2._2.toList
+//          if (tempList.size == 1) List() else List((orderKey, tempList.head))
+          List((orderKey, tempList))
+        })
+        .sortByKey()
+
+    // Print Answer
+    for (i <- combinedTable) {
+      println("(" + i._1 + "," + i._2 + ")")
     }
   }
 }
