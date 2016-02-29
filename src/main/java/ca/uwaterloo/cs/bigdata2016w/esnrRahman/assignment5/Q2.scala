@@ -39,7 +39,7 @@ object Q2 {
         } else if (dateFormatLength == 1) {
           shipDate = shipDate.dropRight(6)
         }
-        if (shipDate == queriedShipDate) List((orderKey,shipDate)) else List()
+        if (shipDate == queriedShipDate) List((orderKey, shipDate)) else List()
       })
 
 //    for (i <- shipDates) {
@@ -61,15 +61,15 @@ object Q2 {
     val combinedTable = shipDates.cogroup(clerkNumber)
         .flatMap(tuple => {
           val orderKey = tuple._1
-          val tempList = tuple._2._2.toList
-//          if (tempList.size == 1) List() else List((orderKey, tempList.head))
-          List((orderKey, tempList))
+          val shipDate = tuple._2._1
+          val clerkNumber = tuple._2._2.toList
+          if (shipDate.isEmpty) List() else List((Integer.parseInt(orderKey), clerkNumber.head))
         })
         .sortByKey()
 
     // Print Answer
-    for (i <- combinedTable) {
-      println("(" + i._1 + "," + i._2 + ")")
+    for (i <- combinedTable.take(20)) {
+      println("(" + i._2 + "," + i._1 + ")")
     }
   }
 }
