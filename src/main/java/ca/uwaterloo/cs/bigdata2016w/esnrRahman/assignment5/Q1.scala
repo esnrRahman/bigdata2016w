@@ -5,7 +5,7 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
-class Conf(args: Seq[String]) extends ScallopConf(args) {
+class Conf1(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, date)
   val input = opt[String](descr = "input dir", required = true)
   val date = opt[String](descr = "date param", required = true)
@@ -15,7 +15,7 @@ object Q1 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new Conf(argv)
+    val args = new Conf3(argv)
 
     log.info("Input: " + args.input())
     log.info("Ship Date: " + args.date())
@@ -24,9 +24,9 @@ object Q1 {
     val sc = new SparkContext(conf)
     val queriedShipDate = args.date()
 
-    val textFile = sc.textFile(args.input() + "/lineitem.tbl")
+    val lineItemTextFile = sc.textFile(args.input() + "/lineitem.tbl")
 
-    val numberOfItems = textFile
+    val numberOfItems = lineItemTextFile
       .flatMap(line => {
         var shipDate = line.split("\\|")(10)
         val dateFormatLength = queriedShipDate.split("\\-").length

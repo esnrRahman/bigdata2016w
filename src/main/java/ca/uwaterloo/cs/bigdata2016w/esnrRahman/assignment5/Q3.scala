@@ -5,13 +5,13 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
-class Conf2(args: Seq[String]) extends ScallopConf(args) {
+class Conf3(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, date)
   val input = opt[String](descr = "input dir", required = true)
   val date = opt[String](descr = "date param", required = true)
 }
 
-object Q2 {
+object Q3 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
@@ -20,7 +20,7 @@ object Q2 {
     log.info("Input: " + args.input())
     log.info("Ship Date: " + args.date())
 
-    val conf = new SparkConf().setAppName("SQL Query 2")
+    val conf = new SparkConf().setAppName("SQL Query 3")
     val sc = new SparkContext(conf)
     val queriedShipDate = args.date()
 
