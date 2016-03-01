@@ -25,7 +25,7 @@ object Q3 {
     val queriedShipDate = args.date()
 
     val lineItemTextFile = sc.textFile(args.input() + "/lineitem.tbl")
-    val partTextFile = sc.textFile(args.input() + "/orders.tbl")
+    val partTextFile = sc.textFile(args.input() + "/part.tbl")
     val supplierTextFile = sc.textFile(args.input() + "/supplier.tbl")
 
     val partNames = partTextFile
@@ -36,7 +36,12 @@ object Q3 {
         (partKey, partName)
       })
 
-    val partsList = sc.broadcast(partNames.collectAsMap())
+//    println("DEBUGGING")
+//    for (i <- partNames.take(20)) {
+//      println("(" + i._1 + "," + i._2 + ")")
+//    }
+
+    val partList = sc.broadcast(partNames.collectAsMap())
 
     val supplierNames = supplierTextFile
       .map(line => {
@@ -56,7 +61,7 @@ object Q3 {
         val supplierKey = lineItemTable(2)
         var shipDate = lineItemTable(10)
         val dateFormatLength = queriedShipDate.split("\\-").length
-        val partName = partsList.value.get(partKey)
+        val partName = partList.value.get(partKey)
         val supplierName = supplierList.value.get(supplierKey)
         // Check date format
         if (dateFormatLength == 2) {
@@ -67,9 +72,14 @@ object Q3 {
         if ((shipDate == queriedShipDate) && (partName != null) && (supplierName != null)) List((orderKey, (partName, supplierName))) else List()
       })
 
+    def show(x: Option[String]) = x match {
+      case Some(s) => s
+      case None => "?"
+    }
+
     // Print Answer
     for (i <- joinedTable.take(20)) {
-      println("(" + i._1 + "," + i._2._1 + "," + i._2._2 + ")")
+      println("(" + i._1 + "," + show(i._2._1) + "," + show(i._2._2) + ")")
     }
   }
 }
