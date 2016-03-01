@@ -15,19 +15,19 @@ object Q2 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new Conf(argv)
+    val args = new Conf3(argv)
 
     log.info("Input: " + args.input())
     log.info("Ship Date: " + args.date())
 
-    val conf = new SparkConf().setAppName("SQL Query 1")
+    val conf = new SparkConf().setAppName("SQL Query 2")
     val sc = new SparkContext(conf)
     val queriedShipDate = args.date()
 
-    val lineItemtextFile = sc.textFile(args.input() + "/lineitem.tbl")
+    val lineItemTextFile = sc.textFile(args.input() + "/lineitem.tbl")
     val orderTextFile = sc.textFile(args.input() + "/orders.tbl")
 
-    val shipDates = lineItemtextFile
+    val shipDates = lineItemTextFile
       .flatMap(line => {
         val lineItemTable = line.split("\\|")
         val orderKey = lineItemTable(0)
