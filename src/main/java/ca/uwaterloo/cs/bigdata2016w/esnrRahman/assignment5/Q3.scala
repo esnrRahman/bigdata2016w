@@ -25,51 +25,51 @@ object Q3 {
     val queriedShipDate = args.date()
 
     val lineItemTextFile = sc.textFile(args.input() + "/lineitem.tbl")
-    val orderTextFile = sc.textFile(args.input() + "/orders.tbl")
+    val partTextFile = sc.textFile(args.input() + "/orders.tbl")
+    val supplierTextFile = sc.textFile(args.input() + "/supplier.tbl")
 
-    val shipDates = lineItemTextFile
+    val partNames = partTextFile
+      .map(line => {
+        val partTable = line.split("\\|")
+        val partKey = partTable(0)
+        val partName = partTable(1)
+        (partKey, partName)
+      })
+
+    val partsList = sc.broadcast(partNames.collectAsMap())
+
+    val supplierNames = supplierTextFile
+      .map(line => {
+        val supplierTable = line.split("\\|")
+        val supplierKey = supplierTable(0)
+        val supplierName = supplierTable(1)
+        (supplierKey, supplierName)
+      })
+
+    val supplierList = sc.broadcast(supplierNames.collectAsMap())
+
+    val joinedTable = lineItemTextFile
       .flatMap(line => {
         val lineItemTable = line.split("\\|")
         val orderKey = lineItemTable(0)
+        val partKey = lineItemTable(1)
+        val supplierKey = lineItemTable(2)
         var shipDate = lineItemTable(10)
         val dateFormatLength = queriedShipDate.split("\\-").length
+        val partName = partsList.value.get(partKey)
+        val supplierName = supplierList.value.get(supplierKey)
         // Check date format
         if (dateFormatLength == 2) {
           shipDate = shipDate.dropRight(3)
         } else if (dateFormatLength == 1) {
           shipDate = shipDate.dropRight(6)
         }
-        if (shipDate == queriedShipDate) List((orderKey, shipDate)) else List()
+        if ((shipDate == queriedShipDate) && (partName != null) && (supplierName != null)) List((orderKey, (partName, supplierName))) else List()
       })
-
-//    for (i <- shipDates) {
-//      println("(" + i._2 + "," + i._1 + ")")
-//    }
-
-    val clerkNumber = orderTextFile
-      .flatMap(line => {
-        val orderTable = line.split("\\|")
-        val orderKey = orderTable(0)
-        val clerkNumber = orderTable(6)
-        List((orderKey, clerkNumber))
-      })
-
-//    for (i <- clerkNumber) {
-//      println("(" + i._2 + "," + i._1 + ")")
-//    }
-
-    val combinedTable = shipDates.cogroup(clerkNumber)
-        .flatMap(tuple => {
-          val orderKey = tuple._1
-          val shipDate = tuple._2._1
-          val clerkNumber = tuple._2._2.toList
-          if (shipDate.isEmpty) List() else List((Integer.parseInt(orderKey), clerkNumber.head))
-        })
-        .sortByKey()
 
     // Print Answer
-    for (i <- combinedTable.take(20)) {
-      println("(" + i._2 + "," + i._1 + ")")
+    for (i <- joinedTable.take(20)) {
+      println("(" + i._1 + "," + i._2._1 + "," + i._2._2 + ")")
     }
   }
 }
