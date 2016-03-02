@@ -44,7 +44,7 @@ object Q4 {
       .map(line => {
         val custTable = line.split("\\|")
         val cCustKey = custTable(0)
-        val cNationKey = custTable(1)
+        val cNationKey = custTable(3)
         (cCustKey, cNationKey)
       })
 
@@ -70,41 +70,61 @@ object Q4 {
       // Do a cogroup join. Result is (joinedOrderKey, (ShipDate, CustKey))
       .cogroup(orderCustKeys)
       // This filter removes all elements where ltOrderKey != oOrderKey
-      .filter(tuple => tuple._2._1.nonEmpty)
-      .filter(tuple => tuple._2._2.nonEmpty)
-      // Rearrange to get (custKey, joinedOrderKey)
-      .map(tuple => (tuple._2._2.toString, tuple._1))
-      // Do a cogroup join. Result is (joinedCustKey, (joinedOrderKey, cNationKey))
-      .cogroup(custKeys)
-      // This filter removes all elements where joinedCustKey != cCustKey
-      .filter(tuple => tuple._2._1.nonEmpty)
-      .filter(tuple => tuple._2._2.nonEmpty)
-      // Rearrange to get (cNationKey, joinedCustKey)
-      .map(tuple => (tuple._2._2.toString, tuple._2._1))
-      // Do a cogroup join. Result is (joinedNationKey, (joinedCustKey, nNationName))
-      .cogroup(nationNames)
-      // This filter removes all elements where joinedCustKey != cCustKey
-      .filter(tuple => tuple._2._1.nonEmpty)
-      .filter(tuple => tuple._2._2.nonEmpty)
-      // Rearrange to get (cNationKey, nNationName)
-      .map(tuple => (Integer.parseInt(tuple._1), tuple._2._2))
-      .keyBy(x => (x._1, x._2))
-      .groupByKey()
-      .sortBy(x => x._1._1)
+      .filter(tuple => tuple._2._1.nonEmpty && tuple._2._2.nonEmpty)
+
+      //    val finalTable = lineItems.collect()
+      //    println("EHSAN !!!" + finalTable.length)
+      //    for (i <- finalTable) {
+      //      println("(" + i._1 + "," + i._1 + ")")
+      //    }
+      // Rearrange to get (custKey, shipDate occurrence)
+      .map(tuple => (tuple._2._2.toList.head, tuple._2._1.size)) // OK here
+      // Refer to custKeyList to get (cNationKey, occurrence #)
+      .map(tuple => (custKeyList.value(tuple._1), tuple._2))
+      //      //
+      .map(tuple => (tuple._1, nationNameList.value.get(tuple._1), tuple._2))
+      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
+      .reduceByKey(_ + _)
+    //        .sortByKey(_._1._1)
+      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
+      .sortByKey()
+
+    def show(x: Option[String]) = x match {
+      case Some(s) => s
+      case None => "?"
+    }
 
     val finalTable = lineItems.collect()
-    println("EHSAN !!!" + finalTable.size)
+    println("EHSAN !!!" + finalTable.length)
     for (i <- finalTable) {
-      println("(" + i._1._1 + "," + i._1._2 + "," + i._2.count(x => true) + ")")
+      println("(" + i._1 + "," + show(i._2._1) + "," + i._2._2 + ")")
     }
 
 
 
+    //      // Do a cogroup join. Result is (joinedCustKey, (joinedOrderKey, cNationKey))
+    //      .cogroup(custKeys)
+    //      // This filter removes all elements where joinedCustKey != cCustKey
+    //      .filter(tuple => tuple._2._1.nonEmpty)
+    //      .filter(tuple => tuple._2._2.nonEmpty)
+    //      // Rearrange to get (cNationKey, joinedCustKey)
+    //      .map(tuple => (tuple._2._2.toString, tuple._2._1))
+    //      // Do a cogroup join. Result is (joinedNationKey, (joinedCustKey, nNationName))
+    //      .cogroup(nationNames)
+    //      // This filter removes all elements where joinedCustKey != cCustKey
+    //      .filter(tuple => tuple._2._1.nonEmpty)
+    //      .filter(tuple => tuple._2._2.nonEmpty)
+    //      // Rearrange to get (cNationKey, nNationName)
+    //      .map(tuple => (Integer.parseInt(tuple._1), tuple._2._2))
+    //      .keyBy(x => (x._1, x._2))
+    //      .groupByKey()
+    //      .sortBy(x => x._1._1)
 
-
-
-
-
+    //    val finalTable = lineItems.collect()
+    //    println("EHSAN !!!" + finalTable.size)
+    //    for (i <- finalTable) {
+    //      println("(" + i._1._1 + "," + i._1._2 + "," + i._2.count(x => true) + ")")
+    //    }
 
 
     // filtered (cCustKey, nationKey) where nNationKey == cNationKey
