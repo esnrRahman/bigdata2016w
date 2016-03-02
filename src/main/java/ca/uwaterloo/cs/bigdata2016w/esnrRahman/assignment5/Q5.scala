@@ -34,7 +34,12 @@ object Q5 {
         val nNationName = nationTable(1)
         (nNationKey, nNationName)
       })
-      .filter(tuple => tuple._1 == "CANADA" || tuple._1 == "UNITED STATES")
+      .filter(tuple => tuple._2 == "CANADA" || tuple._2 == "UNITED STATES")
+
+        for (i <- nationNames.collect())  {
+          println("(" + i._1 + "," + i._2 + ")")
+        }
+
 
     val nationNameList = sc.broadcast(nationNames.collectAsMap())
 
@@ -75,16 +80,26 @@ object Q5 {
       //      println("(" + i._1 + "," + i._1 + ")")
       //    }
 
-      // Rearrange to get (custKey, shipDate)
+      // Rearrange to get (custKey, shipDates)
       .map(tuple => (tuple._2._2.toList.head, tuple._2._1)) // OK here
-      // Refer to custKeyList to get (cNationKey, occurrence #)
-//      .map(tuple => (custKeyList.value(tuple._1), tuple._2))
-//
-//      .map(tuple => (tuple._1, nationNameList.value.get(tuple._1), tuple._2))
-//      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
-//      .reduceByKey(_ + _)
-//      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
-//      .sortByKey()
+      // Refer to custKeyList to get (cNationKey, list of Dates)
+      .map(tuple => (custKeyList.value(tuple._1), tuple._2))
+
+      // Rearrange to make it (NationKey, Date)
+      .map(tuple => {
+      tuple._2.map(date => {
+        (tuple._1, date)
+      })
+    })
+      .flatMap(x => x)
+
+      // Rearrange to make it (nNationName, Date)
+      .map(tuple => ((nationNameList.value(tuple._1), tuple._2), 1))
+
+    //      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
+//          .reduceByKey(_ + _)
+    //      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
+    //      .sortByKey()
 
     def show(x: Option[String]) = x match {
       case Some(s) => s
