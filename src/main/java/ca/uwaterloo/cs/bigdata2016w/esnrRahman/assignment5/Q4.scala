@@ -86,13 +86,14 @@ object Q4 {
       // This filter removes all elements where joinedCustKey != cCustKey
       .filter(tuple => tuple._2._1.nonEmpty)
       .filter(tuple => tuple._2._2.nonEmpty)
-      // Rearrange to get (cNationKey, joinedCustKey)
+      // Rearrange to get (cNationKey, nNationName)
       .map(tuple => (Integer.parseInt(tuple._1), tuple._2._2))
       .keyBy(x => (x._1, x._2))
       .groupByKey()
       .sortBy(x => x._1._1)
 
     val finalTable = lineItems.collect()
+    println("EHSAN !!!" + finalTable.size)
     for (i <- finalTable) {
       println("(" + i._1._1 + "," + i._1._2 + "," + i._2.count(x => true) + ")")
     }
