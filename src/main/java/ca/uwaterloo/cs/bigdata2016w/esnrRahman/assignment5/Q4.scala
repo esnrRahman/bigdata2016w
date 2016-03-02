@@ -5,6 +5,8 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
+import scala.collection.mutable.ArrayBuffer
+
 class Conf4(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, date)
   val input = opt[String](descr = "input dir", required = true)
@@ -49,9 +51,9 @@ object Q4 {
         if (nationName != null) List((custKey, (nationKey, nationName))) else List()
       })
 
-//    for (i <- custKeys) {
-//      println("(" + i._1 + "," + i._2 + ")")
-//    }
+    //    for (i <- custKeys) {
+    //      println("(" + i._1 + "," + i._2 + ")")
+    //    }
 
     val custList = sc.broadcast(custKeys.collectAsMap())
 
@@ -90,16 +92,25 @@ object Q4 {
       .flatMap(tuple => {
         val custKey = tuple._1
         val nationKeyNameTuple = tuple._2._2
-        if (nationKeyNameTuple.isEmpty) List() else List((nationKeyNameTuple._1, nationKeyNameTuple._2))
+        val orderKey = tuple._2._1
+        if (nationKeyNameTuple.isEmpty || nationKeyNameTuple == null || orderKey.isEmpty || orderKey == null) List() else List(nationKeyNameTuple)
       })
-//      .flatMap(tuple => {
-//        if (custList.value.get(tuple._1).get != null) {
-//          val nationKeyNameTuple = custList.value.get(tuple._1).get
-//          List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
-//        } else {
-//          List()
-//        }
-//      })
+      .flatMap(x => x.toList)
+      .map(x => (Integer.parseInt(x._1), x._2))
+
+      //    for (i <- lineItemOrderAndCustNationJoinedTable) {
+      //      println("(" + i + ")")
+      //    }
+
+
+      //      .flatMap(tuple => {
+      //        if (custList.value.get(tuple._1).get != null) {
+      //          val nationKeyNameTuple = custList.value.get(tuple._1).get
+      //          List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
+      //        } else {
+      //          List()
+      //        }
+      //      })
       .keyBy(x => (x._1, x._2))
       .groupByKey()
       .sortBy(x => x._1._1)
