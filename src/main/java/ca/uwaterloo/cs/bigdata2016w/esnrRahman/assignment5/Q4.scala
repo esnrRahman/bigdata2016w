@@ -86,8 +86,16 @@ object Q4 {
     }
 
     // Print Answer
-    for (i <- custKeys) {
-      println("TEST" + i._1 + "   " + i._2 + "    " +  "(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
+    val finalTable = custKeys.collect()
+    for (i <- finalTable) {
+//      println("**********")
+//      println(i)
+//      println("XXXXXXXXXX")
+//      println(i._1)
+//      println("===========")
+//      println(i._2)
+//      println("~~~~~~~~~~~")
+      println("(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
     }
   }
 }
