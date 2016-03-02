@@ -49,6 +49,10 @@ object Q4 {
         if (nationName != null) List((custKey, (nationKey, nationName))) else List()
       })
 
+//    for (i <- custKeys) {
+//      println("(" + i._1 + "," + i._2 + ")")
+//    }
+
     val custList = sc.broadcast(custKeys.collectAsMap())
 
     val oCustKeys = ordersTextFile
@@ -78,11 +82,15 @@ object Q4 {
         val orderKey = tuple._1
         val shipDate = tuple._2._2
         val custKey = tuple._2._1
-        if (shipDate.isEmpty || custKey.isEmpty) List() else List((custKey.toString, orderKey))
+        if (shipDate.isEmpty || custKey.isEmpty) List() else List((custKey.mkString(" "), orderKey))
       })
+
 
     val lineItemOrderAndCustNationJoinedTable = lineItemOrderJoinedTable
       .flatMap(tuple => {
+//        println("HERE 1 !!" + tuple._1)
+//        println("HERE 2 !!" + tuple._2)
+//        println("HERE 3 !!" + custList.value.get(tuple._1))
         if (custList.value.get(tuple._1).get != null) {
           val nationKeyNameTuple = custList.value.get(tuple._1).get
           List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
@@ -102,13 +110,13 @@ object Q4 {
     // Print Answer
     val finalTable = lineItemOrderAndCustNationJoinedTable.collect()
     for (i <- finalTable) {
-//      println("**********")
-//      println(i)
-//      println("XXXXXXXXXX")
-//      println(i._1)
-//      println("===========")
-//      println(i._2)
-//      println("~~~~~~~~~~~")
+      //      println("**********")
+      //      println(i)
+      //      println("XXXXXXXXXX")
+      //      println(i._1)
+      //      println("===========")
+      //      println(i._2)
+      //      println("~~~~~~~~~~~")
       println("(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
     }
   }
