@@ -86,18 +86,20 @@ object Q4 {
       })
 
 
-    val lineItemOrderAndCustNationJoinedTable = lineItemOrderJoinedTable
+    val lineItemOrderAndCustNationJoinedTable = lineItemOrderJoinedTable.cogroup(custKeys)
       .flatMap(tuple => {
-//        println("HERE 1 !!" + tuple._1)
-//        println("HERE 2 !!" + tuple._2)
-//        println("HERE 3 !!" + custList.value.get(tuple._1))
-        if (custList.value.get(tuple._1).get != null) {
-          val nationKeyNameTuple = custList.value.get(tuple._1).get
-          List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
-        } else {
-          List()
-        }
+        val custKey = tuple._1
+        val nationKeyNameTuple = tuple._2._2
+        if (nationKeyNameTuple.isEmpty) List() else List((nationKeyNameTuple._1, nationKeyNameTuple._2))
       })
+//      .flatMap(tuple => {
+//        if (custList.value.get(tuple._1).get != null) {
+//          val nationKeyNameTuple = custList.value.get(tuple._1).get
+//          List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
+//        } else {
+//          List()
+//        }
+//      })
       .keyBy(x => (x._1, x._2))
       .groupByKey()
       .sortBy(x => x._1._1)
