@@ -76,7 +76,9 @@ object Q4 {
         val custKeyExists = lineItemCustList.value.contains(Some(custKey))
         if (nationName != null && custKeyExists) List((Integer.parseInt(nationKey), nationName)) else List()
       })
-      .keyBy(x => (x._1, x._2)).groupByKey().sortBy(x => x._1._1)
+      .keyBy(x => (x._1, x._2))
+      .groupByKey()
+      .sortBy(x => x._1._1)
 
     def show(x: Option[String]) = x match {
       case Some(s) => s
@@ -85,7 +87,7 @@ object Q4 {
 
     // Print Answer
     for (i <- custKeys) {
-      println("(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
+      println("TEST" + i._1 + "   " + i._2 + "    " +  "(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
     }
   }
 }
