@@ -40,6 +40,21 @@ object Q4 {
 
     val nationList = sc.broadcast(nationNames.collectAsMap())
 
+    val custKeys = custTextFile
+      .flatMap(line => {
+        val custTable = line.split("\\|")
+        val custKey = custTable(0)
+        val nationKey = custTable(3)
+        val nationName = nationList.value.get(nationKey)
+        if (nationName != null) List((custKey, (nationKey, nationName))) else List()
+      })
+
+//    for (i <- custKeys) {
+//      println("(" + i._1 + "," + i._2 + ")")
+//    }
+
+    val custList = sc.broadcast(custKeys.collectAsMap())
+
     val oCustKeys = ordersTextFile
       .flatMap(line => {
         val orderTable = line.split("\\|")
@@ -48,33 +63,40 @@ object Q4 {
         List((orderKey, custKey))
       })
 
-    val oCustList = sc.broadcast(oCustKeys.collectAsMap())
-
-    val lineItemCustKeys = lineItemTextFile
+    val lineItemDates = lineItemTextFile
       .flatMap(line => {
         val lineItemTable = line.split("\\|")
         val orderKey = lineItemTable(0)
         var shipDate = lineItemTable(10)
         val dateFormatLength = queriedShipDate.split("\\-").length
-        val custKey = oCustList.value.get(orderKey)
         if (dateFormatLength == 2) {
           shipDate = shipDate.dropRight(3)
         } else if (dateFormatLength == 1) {
           shipDate = shipDate.dropRight(6)
         }
-        if ((shipDate == queriedShipDate) && (custKey != null)) List((custKey, orderKey)) else List()
+        if (shipDate == queriedShipDate) List((orderKey, shipDate)) else List()
       })
 
-    val lineItemCustList = sc.broadcast(lineItemCustKeys.collectAsMap())
+    val lineItemOrderJoinedTable = oCustKeys.cogroup(lineItemDates)
+      .flatMap(tuple => {
+        val orderKey = tuple._1
+        val shipDate = tuple._2._2
+        val custKey = tuple._2._1
+        if (shipDate.isEmpty || custKey.isEmpty) List() else List((custKey.mkString(" "), orderKey))
+      })
 
-    val custKeys = custTextFile
-      .flatMap(line => {
-        val custTable = line.split("\\|")
-        val custKey = custTable(0)
-        val nationKey = custTable(3)
-        val nationName = nationList.value.get(nationKey)
-        val custKeyExists = lineItemCustList.value.contains(Some(custKey))
-        if (nationName != null && custKeyExists) List((Integer.parseInt(nationKey), nationName)) else List()
+
+    val lineItemOrderAndCustNationJoinedTable = lineItemOrderJoinedTable
+      .flatMap(tuple => {
+//        println("HERE 1 !!" + tuple._1)
+//        println("HERE 2 !!" + tuple._2)
+//        println("HERE 3 !!" + custList.value.get(tuple._1))
+        if (custList.value.get(tuple._1).get != null) {
+          val nationKeyNameTuple = custList.value.get(tuple._1).get
+          List((Integer.parseInt(nationKeyNameTuple._1), nationKeyNameTuple._2))
+        } else {
+          List()
+        }
       })
       .keyBy(x => (x._1, x._2))
       .groupByKey()
@@ -86,15 +108,15 @@ object Q4 {
     }
 
     // Print Answer
-    val finalTable = custKeys.collect()
+    val finalTable = lineItemOrderAndCustNationJoinedTable.collect()
     for (i <- finalTable) {
-//      println("**********")
-//      println(i)
-//      println("XXXXXXXXXX")
-//      println(i._1)
-//      println("===========")
-//      println(i._2)
-//      println("~~~~~~~~~~~")
+      //      println("**********")
+      //      println(i)
+      //      println("XXXXXXXXXX")
+      //      println(i._1)
+      //      println("===========")
+      //      println(i._2)
+      //      println("~~~~~~~~~~~")
       println("(" + i._1._1 + "," + show(i._1._2) + "," + i._2.count(x => true) + ")")
     }
   }
