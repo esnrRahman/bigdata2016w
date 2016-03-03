@@ -11,6 +11,7 @@ class Conf6(args: Seq[String]) extends ScallopConf(args) {
   val date = opt[String](descr = "date param", required = true)
 }
 
+
 object Q6 {
   val log = Logger.getLogger(getClass().getName())
 
@@ -38,39 +39,22 @@ object Q6 {
         val ltLineStatus = ltOrderTable(9)
         val ltShipDate = ltOrderTable(10)
 
-        val sumDiscPrice = ltExtendedPrice * (1 - Integer.parseInt(ltDiscount))
-        val sumCharge = ltExtendedPrice * (1 - Integer.parseInt(ltDiscount)) * (1 + Integer.parseInt(ltTax))
+        val sumDiscPrice = ltExtendedPrice.toDouble * (1.0d - ltDiscount.toDouble)
+        val sumCharge = ltExtendedPrice.toDouble * (1.0d - ltDiscount.toDouble) * (1.0d + ltTax.toDouble)
 
-        (ltReturnFlag, ltLineStatus, ltQuantity, ltExtendedPrice, ltDiscount, ltShipDate)
+        (ltReturnFlag, ltLineStatus, ltQuantity, ltExtendedPrice, sumDiscPrice, sumCharge, 1.0d, ltDiscount.toDouble, ltShipDate)
       })
-      .filter(set => set._6.startsWith(queriedShipDate))
-        
-
-
-
-    //      // Do date filter
-    //      .filter(tuple => tuple._2.startsWith(queriedShipDate))
-    //      // Do a cogroup join. Result is (joinedOrderKey, (ShipDate, CustKey))
-    //      .cogroup(orderCustKeys)
-    //      // This filter removes all elements where ltOrderKey != oOrderKey
-    //      .filter(tuple => tuple._2._1.nonEmpty && tuple._2._2.nonEmpty)
-    //
-    //      //    val finalTable = lineItems.collect()
-    //      //    println("EHSAN !!!" + finalTable.length)
-    //      //    for (i <- finalTable) {
-    //      //      println("(" + i._1 + "," + i._1 + ")")
-    //      //    }
-    //
-    //      // Rearrange to get (custKey, shipDate occurrence)
-    //      .map(tuple => (tuple._2._2.toList.head, tuple._2._1.size)) // OK here
-    //      // Refer to custKeyList to get (cNationKey, occurrence #)
-    //      .map(tuple => (custKeyList.value(tuple._1), tuple._2))
-    //      .map(tuple => (tuple._1, nationNameList.value.get(tuple._1), tuple._2))
-    //      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
-    //      .reduceByKey(_ + _)
-    //      //        .sortByKey(_._1._1)
-    //      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
-    //      .sortByKey()
+      .filter(set => set._9.startsWith(queriedShipDate))
+      .map(set => ((set._1, set._2), (set._3.toDouble, set._4.toDouble, set._5, set._6, set._7, set._8)))
+//          .reduceByKey((firstSet, secondSet) =>
+//            (firstSet._1 + secondSet._2,
+//              firstSet._2 + secondSet._2,
+//              firstSet._3, + secondSet._3,
+//              firstSet._4 + secondSet._4,
+//              firstSet._5, + secondSet._5,
+//              firstSet._6, + secondSet._6
+//              )
+//          ).collect().toList
 
     def show(x: Option[String]) = x match {
       case Some(s) => s
@@ -79,7 +63,9 @@ object Q6 {
 
     val finalTable = lineItems.collect()
     for (i <- finalTable) {
-      println("(" + i._1 + "," + show(i._2._1) + "," + i._2._2 + ")")
+      println("XXXXXXXXXX")
+      println("(" + i._1._1 + "," + i._1._2 + "," + i._2._1 + "," + i._2._2 + "," + i._2._3+ "," + i._2._4+ "," + i._2._5 + "," + i._2._6 + ")")
+      println("XXXXXXXXXX")
     }
   }
 
