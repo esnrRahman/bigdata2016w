@@ -93,7 +93,7 @@ object Q7 {
 
     val joinedTable = lineItems.cogroup(orderCustKeys)
       // This filter removes all elements where ltOrderKey != oOrderKey
-        // Arrangement is in the form (joinedOrderKey,
+      // Arrangement is in the form (joinedOrderKey,
       //                                  ( (discPrice, ShippingDate),
       //                                    (cCustName, oOrderDate, oShippingPriority) ))
       // set._1 => joinedOrderKey
@@ -105,25 +105,19 @@ object Q7 {
         val custName = set._2._2.toList.head._1
         val orderDate = set._2._2.toList.head._2
         val shippingPriority = set._2._2.toList.head._3
-        val discPrice = set._2._1.toList.head._1
+        val discPrice = set._2._1.map(x => x._1).sum
         val shippingDate = set._2._1.toList.head._2
-        ((custName, orderKey, orderDate, shippingPriority), discPrice.toDouble)
+        ((custName, orderKey, orderDate, shippingPriority), discPrice)
       })
-      .reduceByKey((val1, val2) => val1 + val2)
-      .collect().toList
+      .groupByKey()
       .map(set => {
-        val custName = set._1._1
-        val orderKey = set._1._2
-        val orderDate = set._1._3
-        val shippingPriority = set._1._4
-        val revenue = set._2
-        (revenue, (custName, orderKey, orderDate, shippingPriority))
-      })
-      .sortBy(x => x._1)
+        ((set._1._1, set._1._2, set._1._3, set._1._4), set._2.map(revenue => revenue).sum)
+      }).sortBy(set => set._2, false)
+
 
     val finalTable = joinedTable.take(10)
     for (i <- finalTable) {
-      println("(" + i._2._1 + "," + i._2._2 + "," + i._1 + "," + i._2._3 + "," + i._2._4 + ")")
+      println("(" + i._1._1 + "," + i._1._2 + "," + i._2 + "," + i._1._3 + "," + i._1._4 + ")")
     }
   }
 
