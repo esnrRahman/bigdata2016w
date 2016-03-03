@@ -21,7 +21,7 @@ object Q6 {
     log.info("Input: " + args.input())
     log.info("Ship Date: " + args.date())
 
-    val conf = new SparkConf().setAppName("SQL Query 4")
+    val conf = new SparkConf().setAppName("SQL Query 6")
     val sc = new SparkContext(conf)
     val queriedShipDate = args.date()
 
