@@ -117,12 +117,13 @@ object Q7 {
         val orderDate = set._1._3
         val shippingPriority = set._1._4
         val revenue = set._2
-        (custName, orderKey, revenue, orderDate, shippingPriority)
+        (revenue, (custName, orderKey, orderDate, shippingPriority))
       })
+      .sortBy(x => x._1)
 
-    val finalTable = joinedTable.take(20)
+    val finalTable = joinedTable.take(10)
     for (i <- finalTable) {
-      println("(" + i._1 + "," + i._2 + "," + i._3 + "," + i._4 + "," + i._5 + ")")
+      println("(" + i._2._1 + "," + i._2._2 + "," + i._1 + "," + i._2._3 + "," + i._2._4 + ")")
     }
   }
 
