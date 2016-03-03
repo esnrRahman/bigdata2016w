@@ -36,11 +36,9 @@ object Q5 {
       })
       .filter(tuple => tuple._2 == "CANADA" || tuple._2 == "UNITED STATES")
 
-        for (i <- nationNames.collect())  {
-          println("(" + i._1 + "," + i._2 + ")")
-        }
-
-
+    //        for (i <- nationNames.collect())  {
+    //          println("(" + i._1 + "," + i._2 + ")")
+    //        }
     val nationNameList = sc.broadcast(nationNames.collectAsMap())
 
     val custKeys = custTextFile
@@ -84,7 +82,6 @@ object Q5 {
       .map(tuple => (tuple._2._2.toList.head, tuple._2._1)) // OK here
       // Refer to custKeyList to get (cNationKey, list of Dates)
       .map(tuple => (custKeyList.value(tuple._1), tuple._2))
-
       // Rearrange to make it (NationKey, Date)
       .map(tuple => {
       tuple._2.map(date => {
@@ -92,14 +89,24 @@ object Q5 {
       })
     })
       .flatMap(x => x)
-
-      // Rearrange to make it (nNationName, Date)
+      // Take out not required cities. Can be optimized by doing earlier but dont care now
+      .filter(tuple => nationNameList.value.contains(tuple._1))
+      // Arrange in the form of ((NationName, Date), Count)
       .map(tuple => ((nationNameList.value(tuple._1), tuple._2), 1))
 
-    //      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
-//          .reduceByKey(_ + _)
-    //      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
-    //      .sortByKey()
+      // Rearrange to make it (nNationName, Date)
+      //      .map(tuple => {
+      //      if (nationNameList.value.get(tuple._1).isDefined) {
+      //        ((nationNameList.value.get(tuple._1), tuple._2), 1)
+      //      }
+
+      //    })
+
+      //      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
+      .reduceByKey(_ + _)
+
+      //      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
+      .sortByKey()
 
     def show(x: Option[String]) = x match {
       case Some(s) => s
