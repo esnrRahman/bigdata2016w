@@ -36,10 +36,10 @@ object Q3 {
         (partKey, partName)
       })
 
-//    println("DEBUGGING")
-//    for (i <- partNames.take(20)) {
-//      println("(" + i._1 + "," + i._2 + ")")
-//    }
+    //    println("DEBUGGING")
+    //    for (i <- partNames.take(20)) {
+    //      println("(" + i._1 + "," + i._2 + ")")
+    //    }
 
     val partList = sc.broadcast(partNames.collectAsMap())
 
@@ -71,6 +71,7 @@ object Q3 {
         }
         if ((shipDate == queriedShipDate) && (partName != null) && (supplierName != null)) List((orderKey, (partName, supplierName))) else List()
       })
+      .collect()
 
     def show(x: Option[String]) = x match {
       case Some(s) => s

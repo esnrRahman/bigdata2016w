@@ -42,9 +42,9 @@ object Q2 {
         if (shipDate == queriedShipDate) List((orderKey, shipDate)) else List()
       })
 
-//    for (i <- shipDates) {
-//      println("(" + i._2 + "," + i._1 + ")")
-//    }
+    //    for (i <- shipDates) {
+    //      println("(" + i._2 + "," + i._1 + ")")
+    //    }
 
     val clerkNumber = orderTextFile
       .flatMap(line => {
@@ -54,18 +54,19 @@ object Q2 {
         List((orderKey, clerkNumber))
       })
 
-//    for (i <- clerkNumber) {
-//      println("(" + i._2 + "," + i._1 + ")")
-//    }
+    //    for (i <- clerkNumber) {
+    //      println("(" + i._2 + "," + i._1 + ")")
+    //    }
 
     val combinedTable = shipDates.cogroup(clerkNumber)
-        .flatMap(tuple => {
-          val orderKey = tuple._1
-          val shipDate = tuple._2._1
-          val clerkNumber = tuple._2._2.toList
-          if (shipDate.isEmpty) List() else List((Integer.parseInt(orderKey), clerkNumber.head))
-        })
-        .sortByKey()
+      .flatMap(tuple => {
+        val orderKey = tuple._1
+        val shipDate = tuple._2._1
+        val clerkNumber = tuple._2._2.toList
+        if (shipDate.isEmpty) List() else List((Integer.parseInt(orderKey), clerkNumber.head))
+      })
+      .sortByKey()
+      .collect()
 
     // Print Answer
     for (i <- combinedTable.take(20)) {
