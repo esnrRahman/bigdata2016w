@@ -105,18 +105,9 @@ object Q7 {
         val custName = set._2._2.toList.head._1
         val orderDate = set._2._2.toList.head._2
         val shippingPriority = set._2._2.toList.head._3
-        val discPrice = set._2._1.toList.head._1
+        val discPrice = set._2._1.map(x => x._1).sum
         val shippingDate = set._2._1.toList.head._2
-        ((custName, orderKey, orderDate, shippingPriority), discPrice.toDouble)
-      })
-      .reduceByKey((val1, val2) => val1 + val2)
-      .map(set => {
-        val custName = set._1._1
-        val orderKey = set._1._2
-        val orderDate = set._1._3
-        val shippingPriority = set._1._4
-        val revenue = set._2
-        ((custName, orderKey, orderDate, shippingPriority), revenue)
+        ((custName, orderKey, orderDate, shippingPriority), discPrice)
       })
       .groupByKey()
       .map(set => {
