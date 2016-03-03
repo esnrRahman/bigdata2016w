@@ -5,24 +5,21 @@ import org.apache.spark.SparkContext
 import org.apache.spark.SparkConf
 import org.rogach.scallop._
 
-class Conf4(args: Seq[String]) extends ScallopConf(args) {
-  mainOptions = Seq(input, date)
+class Conf5(args: Seq[String]) extends ScallopConf(args) {
+  mainOptions = Seq(input)
   val input = opt[String](descr = "input dir", required = true)
-  val date = opt[String](descr = "date param", required = true)
 }
 
-object Q4 {
+object Q5 {
   val log = Logger.getLogger(getClass().getName())
 
   def main(argv: Array[String]) {
-    val args = new Conf4(argv)
+    val args = new Conf5(argv)
 
     log.info("Input: " + args.input())
-    log.info("Ship Date: " + args.date())
 
-    val conf = new SparkConf().setAppName("SQL Query 4")
+    val conf = new SparkConf().setAppName("SQL Query 5")
     val sc = new SparkContext(conf)
-    val queriedShipDate = args.date()
 
     val lineItemTextFile = sc.textFile(args.input() + "/lineitem.tbl")
     val ordersTextFile = sc.textFile(args.input() + "/orders.tbl")
@@ -37,7 +34,11 @@ object Q4 {
         val nNationName = nationTable(1)
         (nNationKey, nNationName)
       })
+      .filter(tuple => tuple._2 == "CANADA" || tuple._2 == "UNITED STATES")
 
+    //        for (i <- nationNames.collect())  {
+    //          println("(" + i._1 + "," + i._2 + ")")
+    //        }
     val nationNameList = sc.broadcast(nationNames.collectAsMap())
 
     val custKeys = custTextFile
@@ -63,11 +64,9 @@ object Q4 {
       .map(line => {
         val ltOrderTable = line.split("\\|")
         val ltOrderKey = ltOrderTable(0)
-        val ltShipDate = ltOrderTable(10)
+        val ltShipDate = ltOrderTable(10).dropRight(3)
         (ltOrderKey, ltShipDate)
       })
-      // Do date filter
-      .filter(tuple => tuple._2.startsWith(queriedShipDate))
       // Do a cogroup join. Result is (joinedOrderKey, (ShipDate, CustKey))
       .cogroup(orderCustKeys)
       // This filter removes all elements where ltOrderKey != oOrderKey
@@ -79,15 +78,34 @@ object Q4 {
       //      println("(" + i._1 + "," + i._1 + ")")
       //    }
 
-      // Rearrange to get (custKey, shipDate occurrence)
-      .map(tuple => (tuple._2._2.toList.head, tuple._2._1.size)) // OK here
-      // Refer to custKeyList to get (cNationKey, occurrence #)
+      // Rearrange to get (custKey, shipDates)
+      .map(tuple => (tuple._2._2.toList.head, tuple._2._1)) // OK here
+      // Refer to custKeyList to get (cNationKey, list of Dates)
       .map(tuple => (custKeyList.value(tuple._1), tuple._2))
-      .map(tuple => (tuple._1, nationNameList.value.get(tuple._1), tuple._2))
-      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
+      // Rearrange to make it (NationKey, Date)
+      .map(tuple => {
+      tuple._2.map(date => {
+        (tuple._1, date)
+      })
+    })
+      .flatMap(x => x)
+      // Take out not required cities. Can be optimized by doing earlier but dont care now
+      .filter(tuple => nationNameList.value.contains(tuple._1))
+      // Arrange in the form of ((NationName, Date), Count)
+      .map(tuple => ((nationNameList.value(tuple._1), tuple._2), 1))
+
+      // Rearrange to make it (nNationName, Date)
+      //      .map(tuple => {
+      //      if (nationNameList.value.get(tuple._1).isDefined) {
+      //        ((nationNameList.value.get(tuple._1), tuple._2), 1)
+      //      }
+
+      //    })
+
+      //      .map(threeTuple => ((threeTuple._1, threeTuple._2), threeTuple._3))
       .reduceByKey(_ + _)
-    //        .sortByKey(_._1._1)
-      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
+
+      //      .map(tuple => (Integer.parseInt(tuple._1._1), (tuple._1._2, tuple._2)))
       .sortByKey()
 
     def show(x: Option[String]) = x match {
@@ -97,7 +115,7 @@ object Q4 {
 
     val finalTable = lineItems.collect()
     for (i <- finalTable) {
-      println("(" + i._1 + "," + show(i._2._1) + "," + i._2._2 + ")")
+      println("(" + i._1 + "," + i._2 + ")")
     }
   }
 
