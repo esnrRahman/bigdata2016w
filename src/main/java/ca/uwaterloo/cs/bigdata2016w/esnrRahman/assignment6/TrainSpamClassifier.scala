@@ -5,6 +5,8 @@ import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.rogach.scallop.ScallopConf
 
+import scala.collection.mutable.Buffer
+
 class Conf1(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, model)
   val input = opt[String](descr = "input file", required = true)
@@ -18,7 +20,7 @@ object TrainSpamClassifier {
   var w = scala.collection.mutable.Map[Int, Double]()
 
   // Scores a document based on its list of features.
-  def spamminess(features: Array[Int]): Double = {
+  def spamminess(features: Buffer[Int]): Double = {
     var score = 0d
     features.foreach(f => if (w.contains(f)) score += w(f))
     score
@@ -39,15 +41,18 @@ object TrainSpamClassifier {
     val textFile = sc.textFile(args.input())
 
     val trained = textFile.map(line => {
-      val trainingInstance = line.split(" ")
-      val docid = trainingInstance(0)
-      val label = trainingInstance(1)
+      val trainingInstanceArray = line.split(" ")
+      val docid = trainingInstanceArray(0)
+      val label = trainingInstanceArray(1)
 
       val isSpam = if (label == "spam") 1 else 0
 
-      trainingInstance.toBuffer.remove(0, 1)
+      val features = trainingInstanceArray.toBuffer
+      features -= docid
+      features -= label
 
-      (0, (docid, isSpam, trainingInstance))
+//      println("EHSAN 1 -> " + features)
+      (0, (docid, isSpam, features))
     })
       .groupByKey(1)
       .map(pair => {
@@ -56,25 +61,32 @@ object TrainSpamClassifier {
         // This is the main learner:
         val delta = 0.002
 
+        val pairList = pair._2.toList
+
         // For each instance...
-        val isSpam = pair._2.iterator.next()._2
+        val isSpam = pairList(1)
         // label
-        val featuresString = pair._2.iterator.next()._3 // feature vector of the training instance
+        val featuresString = pairList(2) // feature vector of the training instance
 
-        val features = featuresString.map(_.toInt)
+        println("EHSAN 1 -> " + featuresString)
 
-        // Update the weights as follows:
-        val score = spamminess(features)
-        val prob = 1.0 / (1 + Math.exp(-score))
-        features.foreach(f => {
-          if (w.contains(f)) {
-            w(f) += (isSpam - prob) * delta
-          } else {
-            val result = (isSpam - prob) * delta
-            w += (f -> result)
-          }
-        })
-        w
+//        val features = featuresString.map(_.toInt)
+////        println("EHSAN 2 -> " + pair._2.iterator.next()._1)
+//
+//
+//        // Update the weights as follows:
+//        val score = spamminess(features)
+//        val prob = 1.0 / (1 + Math.exp(-score))
+//        features.foreach(f => {
+//          if (w.contains(f)) {
+//            w(f) += (isSpam - prob) * delta
+//          } else {
+////            val result = (isSpam - prob) * delta
+////            w += (f -> result)
+//            w(f) = (isSpam - prob) * delta
+//          }
+//        })
+//        w
       })
 
     trained.saveAsTextFile(args.model())
