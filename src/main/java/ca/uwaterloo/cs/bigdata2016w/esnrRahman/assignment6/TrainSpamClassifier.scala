@@ -51,7 +51,7 @@ object TrainSpamClassifier {
       features -= docid
       features -= label
 
-//      println("EHSAN 1 -> " + features)
+      //      println("EHSAN 1 -> " + features)
       (0, (docid, isSpam, features))
     })
       .groupByKey(1)
@@ -63,30 +63,32 @@ object TrainSpamClassifier {
 
         val pairList = pair._2.toList
 
-        // For each instance...
-        val isSpam = pairList(1)
-        // label
-        val featuresString = pairList(2) // feature vector of the training instance
+        pairList.foreach(tuple => {
+          // For each instance...
+          val isSpam = tuple._2
+          // label
+          val featuresString = tuple._3 // feature vector of the training instance
 
-        println("EHSAN 1 -> " + featuresString)
+          //        println("EHSAN 1 -> " + featuresString)
 
-//        val features = featuresString.map(_.toInt)
-////        println("EHSAN 2 -> " + pair._2.iterator.next()._1)
-//
-//
-//        // Update the weights as follows:
-//        val score = spamminess(features)
-//        val prob = 1.0 / (1 + Math.exp(-score))
-//        features.foreach(f => {
-//          if (w.contains(f)) {
-//            w(f) += (isSpam - prob) * delta
-//          } else {
-////            val result = (isSpam - prob) * delta
-////            w += (f -> result)
-//            w(f) = (isSpam - prob) * delta
-//          }
-//        })
-//        w
+          val features = featuresString.map(_.toInt)
+          //        println("EHSAN 2 -> " + pair._2.iterator.next()._1)
+
+
+          // Update the weights as follows:
+          val score = spamminess(features)
+          val prob = 1.0 / (1 + Math.exp(-score))
+          features.foreach(f => {
+            if (w.contains(f)) {
+              w(f) += (isSpam - prob) * delta
+            } else {
+              //            val result = (isSpam - prob) * delta
+              //            w += (f -> result)
+              w(f) = (isSpam - prob) * delta
+            }
+          })
+        })
+        w
       })
 
     trained.saveAsTextFile(args.model())
