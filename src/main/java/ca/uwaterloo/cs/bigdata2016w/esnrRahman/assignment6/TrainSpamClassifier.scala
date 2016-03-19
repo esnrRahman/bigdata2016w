@@ -90,6 +90,7 @@ object TrainSpamClassifier {
         })
         w
       })
+      .flatMap(_.toSeq)
 
     trained.saveAsTextFile(args.model())
 
