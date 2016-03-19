@@ -44,12 +44,13 @@ object ApplySpamClassifier {
 
     val modelFile = sc.textFile(args.model() + "/part-00000")
 
-    val modelMap = modelFile.map(line => {
+
+    modelFile.map(line => {
       val stringArray = line.split("\\,")
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
       w(feature) = weight
-    })
+    }).saveAsTextFile("temp")
 
     val result = textFile.map(line => {
       val trainingInstanceArray = line.split(" ")
@@ -62,6 +63,12 @@ object ApplySpamClassifier {
       featuresStringArray -= label
 
       val features = featuresStringArray.map(_.toInt)
+
+//      for((k, v) <- w) {
+//        println("EHSAN 1 feature -> " + k + "weight -> " + v)
+//      }
+//
+//      println("THE WEIGHT IS --> " + w.size)
 
       val spamminessScore = spamminess(features)
 
