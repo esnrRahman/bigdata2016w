@@ -47,11 +47,13 @@ object ApplySpamClassifier {
       val docid = trainingInstanceArray(0)
       val label = trainingInstanceArray(1)
 
-      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length - 1)
-      val features = featuresString.map(_.toInt)
-
       var spamminessScore = 0d
-      features.foreach(f => if (test.contains(f)) spamminessScore += test(f))
+
+//      for (x <- trainingInstanceArray) {
+//        if (test.contains(x)) spamminessScore += test(x)
+//      }
+
+      trainingInstanceArray.foreach(f => if (test.contains(f.toInt)) spamminessScore += test(f.toInt))
 
       if (spamminessScore > 0)
         (docid, label, spamminessScore, "spam")
