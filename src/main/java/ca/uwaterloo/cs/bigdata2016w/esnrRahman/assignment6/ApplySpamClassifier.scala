@@ -5,8 +5,6 @@ import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.rogach.scallop.ScallopConf
 
-import scala.collection.mutable.Buffer
-
 class Conf2(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, output, model)
   val input = opt[String](descr = "input file", required = true)
@@ -39,7 +37,6 @@ object ApplySpamClassifier {
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
       // Getting stuck at the next line
-//      w(feature) = weight
       (feature, weight)
     })
 
@@ -50,12 +47,8 @@ object ApplySpamClassifier {
       val docid = trainingInstanceArray(0)
       val label = trainingInstanceArray(1)
 
-      val featuresStringArray = trainingInstanceArray.toBuffer
-
-      featuresStringArray -= docid
-      featuresStringArray -= label
-
-      val features = featuresStringArray.map(_.toInt)
+      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length - 1)
+      val features = featuresString.map(_.toInt)
 
       var spamminessScore = 0d
       features.foreach(f => if (test.contains(f)) spamminessScore += test(f))

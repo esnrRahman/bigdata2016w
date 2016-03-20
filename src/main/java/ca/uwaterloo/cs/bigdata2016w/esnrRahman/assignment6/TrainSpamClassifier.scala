@@ -20,7 +20,7 @@ object TrainSpamClassifier {
   var w = scala.collection.mutable.Map[Int, Double]()
 
   // Scores a document based on its list of features.
-  def spamminess(features: Buffer[Int]): Double = {
+  def spamminess(features: Array[Int]): Double = {
     var score = 0d
     features.foreach(f => if (w.contains(f)) score += w(f))
     score
@@ -44,14 +44,10 @@ object TrainSpamClassifier {
       val trainingInstanceArray = line.split(" ")
       val docid = trainingInstanceArray(0)
       val label = trainingInstanceArray(1)
-
       val isSpam = if (label == "spam") 1 else 0
+      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length - 1)
+      val features = featuresString.map(_.toInt)
 
-      val features = trainingInstanceArray.toBuffer
-      features -= docid
-      features -= label
-
-      //      println("EHSAN 1 -> " + features)
       (0, (docid, isSpam, features))
     })
       .groupByKey(1)
@@ -61,19 +57,11 @@ object TrainSpamClassifier {
         // This is the main learner:
         val delta = 0.002
 
-        val pairList = pair._2.toList
-
-        pairList.foreach(tuple => {
+        pair._2.foreach(tuple => {
           // For each instance...
           val isSpam = tuple._2
           // label
-          val featuresString = tuple._3 // feature vector of the training instance
-
-          //        println("EHSAN 1 -> " + featuresString)
-
-          val features = featuresString.map(_.toInt)
-          //        println("EHSAN 2 -> " + pair._2.iterator.next()._1)
-
+          val features = tuple._3 // feature vector of the training instance
 
           // Update the weights as follows:
           val score = spamminess(features)
@@ -82,8 +70,6 @@ object TrainSpamClassifier {
             if (w.contains(f)) {
               w(f) += (isSpam - prob) * delta
             } else {
-              //            val result = (isSpam - prob) * delta
-              //            w += (f -> result)
               w(f) = (isSpam - prob) * delta
             }
           })
