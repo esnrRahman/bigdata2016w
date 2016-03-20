@@ -27,7 +27,7 @@ object ApplyEnsembleSpamClassifier {
     log.info("Input path:" + args.input())
     log.info("Output dir:" + args.output())
     log.info("Model dir:" + args.model())
-    log.info("Ensemble technique:" + args.model())
+    log.info("Ensemble technique:" + args.method())
 
     val conf = new SparkConf().setAppName("Apply Ensemble Spam Classifier")
     val sc = new SparkContext(conf)
@@ -82,6 +82,7 @@ object ApplyEnsembleSpamClassifier {
 
     val test = sc.broadcast(w)
 
+    val methodType = args.method()
 
     val result = textFile.map(line => {
       val trainingInstanceArray = line.split(" ")
@@ -96,26 +97,26 @@ object ApplyEnsembleSpamClassifier {
 
       for (x <- 2 until trainingInstanceArray.length) {
         val feature = trainingInstanceArray(x).toInt
-        if (w.contains(feature)) {
+        if (test.value.contains(feature)) {
           // x
-          if (!w(feature)._1.isNaN) {
-            scoreX += w(feature)._1
+          if (!test.value(feature)._1.isNaN) {
+            scoreX += test.value(feature)._1
           }
           // y
-          if (!w(feature)._2.isNaN) {
-            scoreY += w(feature)._2
+          if (!test.value(feature)._2.isNaN) {
+            scoreY += test.value(feature)._2
           }
           // britney
-          if (!w(feature)._3.isNaN) {
-            scoreBritney += w(feature)._3
+          if (!test.value(feature)._3.isNaN) {
+            scoreBritney += test.value(feature)._3
           }
         }
       }
 
-      if (args.method() == "average") {
+      if (methodType == "average") {
         finalScore = (scoreX + scoreY + scoreBritney) / 3
       }
-      else if (args.method() == "vote") {
+      else if (methodType == "vote") {
         var xVote = 0
         var yVote = 0
         var britneyVote = 0
