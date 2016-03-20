@@ -5,6 +5,8 @@ import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.rogach.scallop.ScallopConf
 
+import scala.io.Source
+
 class Conf2(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, output, model)
   val input = opt[String](descr = "input file", required = true)
@@ -34,17 +36,27 @@ object ApplySpamClassifier {
 
     val modelFile = sc.textFile(args.model() + "/part-00000")
 
-    val modelData = modelFile.map(line => {
-      val stringArray = line.split(",")
-      val feature = stringArray(0).drop(1).toInt
-      val weight = stringArray(1).dropRight(1).toDouble
-      // Getting stuck at the next line
-      w(feature) = weight
-    })
 
+    // This one doesn't work
+//    val modelData = modelFile.map(line => {
+//      val stringArray = line.split(",")
+//      val feature = stringArray(0).drop(1).toInt
+//      val weight = stringArray(1).dropRight(1).toDouble
+//      // Getting stuck at the next line
+//      w.put(feature, weight)
+//    })
+//    val test = sc.broadcast(w)
 //    val test = modelData.collectAsMap()
 
-    println("EHSAN !!!!")
+    for(line <- Source.fromFile(args.model() + "/part-00000").getLines()) {
+            val stringArray = line.split(",")
+            val feature = stringArray(0).drop(1).toInt
+            val weight = stringArray(1).dropRight(1).toDouble
+            w.put(feature, weight)
+    }
+
+//    val test = sc.broadcast(w)
+
 
     val result = textFile.map(line => {
       val trainingInstanceArray = line.split(" ")
@@ -53,12 +65,16 @@ object ApplySpamClassifier {
 
       var spamminessScore = 0d
 
-      for (x <- 2 until (trainingInstanceArray.length - 1)) {
+      for (x <- 2 until trainingInstanceArray.length) {
         val feature = trainingInstanceArray(x).toInt
         if (w.contains(feature)) spamminessScore += w(feature)
       }
 
-//      trainingInstanceArray.foreach(f => if (w.contains(f.toInt)) spamminessScore += w(f.toInt))
+      //      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length)
+      //      val features = featuresString.map(_.toInt)
+
+
+      //      features.foreach(f => if (w.contains(f)) spamminessScore += w(f))
 
       if (spamminessScore > 0)
         (docid, label, spamminessScore, "spam")

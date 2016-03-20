@@ -45,7 +45,7 @@ object TrainSpamClassifier {
       val docid = trainingInstanceArray(0)
       val label = trainingInstanceArray(1)
       val isSpam = if (label == "spam") 1 else 0
-      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length - 1)
+      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length)
       val features = featuresString.map(_.toInt)
 
       (0, (docid, isSpam, features))
