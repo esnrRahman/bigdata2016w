@@ -15,6 +15,8 @@ class Conf2(args: Seq[String]) extends ScallopConf(args) {
 object ApplySpamClassifier {
   val log = Logger.getLogger(getClass().getName())
 
+  var w = scala.collection.mutable.Map[Int, Double]()
+
   def main(argv: Array[String]) {
     val args = new Conf2(argv)
 
@@ -37,10 +39,12 @@ object ApplySpamClassifier {
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
       // Getting stuck at the next line
-      (feature, weight)
+      w(feature) = weight
     })
 
-    val test = modelData.collectAsMap()
+//    val test = modelData.collectAsMap()
+
+    println("EHSAN !!!!")
 
     val result = textFile.map(line => {
       val trainingInstanceArray = line.split(" ")
@@ -49,11 +53,12 @@ object ApplySpamClassifier {
 
       var spamminessScore = 0d
 
-//      for (x <- trainingInstanceArray) {
-//        if (test.contains(x)) spamminessScore += test(x)
-//      }
+      for (x <- 2 until (trainingInstanceArray.length - 1)) {
+        val feature = trainingInstanceArray(x).toInt
+        if (w.contains(feature)) spamminessScore += w(feature)
+      }
 
-      trainingInstanceArray.foreach(f => if (test.contains(f.toInt)) spamminessScore += test(f.toInt))
+//      trainingInstanceArray.foreach(f => if (w.contains(f.toInt)) spamminessScore += w(f.toInt))
 
       if (spamminessScore > 0)
         (docid, label, spamminessScore, "spam")
