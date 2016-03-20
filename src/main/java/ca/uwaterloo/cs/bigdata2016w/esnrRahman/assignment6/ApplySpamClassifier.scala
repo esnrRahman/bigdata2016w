@@ -5,7 +5,7 @@ import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.rogach.scallop.ScallopConf
 
-import scala.collection.mutable.Buffer
+import scala.io.Source
 
 class Conf2(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, output, model)
@@ -16,6 +16,8 @@ class Conf2(args: Seq[String]) extends ScallopConf(args) {
 
 object ApplySpamClassifier {
   val log = Logger.getLogger(getClass().getName())
+
+  var w = scala.collection.mutable.Map[Int, Double]()
 
   def main(argv: Array[String]) {
     val args = new Conf2(argv)
@@ -34,31 +36,45 @@ object ApplySpamClassifier {
 
     val modelFile = sc.textFile(args.model() + "/part-00000")
 
-    val modelData = modelFile.map(line => {
-      val stringArray = line.split(",")
-      val feature = stringArray(0).drop(1).toInt
-      val weight = stringArray(1).dropRight(1).toDouble
-      // Getting stuck at the next line
-//      w(feature) = weight
-      (feature, weight)
-    })
 
-    val test = modelData.collectAsMap()
+    // This one doesn't work
+//    val modelData = modelFile.map(line => {
+//      val stringArray = line.split(",")
+//      val feature = stringArray(0).drop(1).toInt
+//      val weight = stringArray(1).dropRight(1).toDouble
+//      // Getting stuck at the next line
+//      w.put(feature, weight)
+//    })
+//    val test = sc.broadcast(w)
+//    val test = modelData.collectAsMap()
+
+    for(line <- Source.fromFile(args.model() + "/part-00000").getLines()) {
+            val stringArray = line.split(",")
+            val feature = stringArray(0).drop(1).toInt
+            val weight = stringArray(1).dropRight(1).toDouble
+            w.put(feature, weight)
+    }
+
+//    val test = sc.broadcast(w)
+
 
     val result = textFile.map(line => {
       val trainingInstanceArray = line.split(" ")
       val docid = trainingInstanceArray(0)
       val label = trainingInstanceArray(1)
 
-      val featuresStringArray = trainingInstanceArray.toBuffer
-
-      featuresStringArray -= docid
-      featuresStringArray -= label
-
-      val features = featuresStringArray.map(_.toInt)
-
       var spamminessScore = 0d
-      features.foreach(f => if (test.contains(f)) spamminessScore += test(f))
+
+      for (x <- 2 until trainingInstanceArray.length) {
+        val feature = trainingInstanceArray(x).toInt
+        if (w.contains(feature)) spamminessScore += w(feature)
+      }
+
+      //      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length)
+      //      val features = featuresString.map(_.toInt)
+
+
+      //      features.foreach(f => if (w.contains(f)) spamminessScore += w(f))
 
       if (spamminessScore > 0)
         (docid, label, spamminessScore, "spam")
