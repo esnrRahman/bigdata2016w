@@ -17,7 +17,7 @@ class Conf2(args: Seq[String]) extends ScallopConf(args) {
 object ApplySpamClassifier {
   val log = Logger.getLogger(getClass().getName())
 
-  var w = scala.collection.mutable.Map[Int, Double]()
+//  var w = scala.collection.mutable.Map[Int, Double]()
 
   def main(argv: Array[String]) {
     val args = new Conf2(argv)
@@ -36,24 +36,24 @@ object ApplySpamClassifier {
 
     val modelFile = sc.textFile(args.model() + "/part-00000")
 
+    val modelData = modelFile.map(line => {
+      val stringArray = line.split(",")
+      val feature = stringArray(0).drop(1).toInt
+      val weight = stringArray(1).dropRight(1).toDouble
+      (feature, weight)
+    })
 
-    // This one doesn't work
-//    val modelData = modelFile.map(line => {
-//      val stringArray = line.split(",")
-//      val feature = stringArray(0).drop(1).toInt
-//      val weight = stringArray(1).dropRight(1).toDouble
-//      // Getting stuck at the next line
-//      w.put(feature, weight)
-//    })
-//    val test = sc.broadcast(w)
-//    val test = modelData.collectAsMap()
+    val test = modelData.collect.toMap
 
-    for(line <- Source.fromFile(args.model() + "/part-00000").getLines()) {
-            val stringArray = line.split(",")
-            val feature = stringArray(0).drop(1).toInt
-            val weight = stringArray(1).dropRight(1).toDouble
-            w.put(feature, weight)
-    }
+    val brval = sc.broadcast(test)
+
+
+    //    for(line <- Source.fromFile(args.model() + "/part-00000").getLines()) {
+//            val stringArray = line.split(",")
+//            val feature = stringArray(0).drop(1).toInt
+//            val weight = stringArray(1).dropRight(1).toDouble
+//            w.put(feature, weight)
+//    }
 
 //    val test = sc.broadcast(w)
 
@@ -67,7 +67,7 @@ object ApplySpamClassifier {
 
       for (x <- 2 until trainingInstanceArray.length) {
         val feature = trainingInstanceArray(x).toInt
-        if (w.contains(feature)) spamminessScore += w(feature)
+        if (brval.value.contains(feature)) spamminessScore += brval.value(feature)
       }
 
       //      val featuresString = trainingInstanceArray.slice(2, trainingInstanceArray.length)

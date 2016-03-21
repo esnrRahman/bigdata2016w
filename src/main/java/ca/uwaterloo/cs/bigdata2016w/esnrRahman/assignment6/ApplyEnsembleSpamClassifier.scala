@@ -5,8 +5,6 @@ import org.apache.log4j.Logger
 import org.apache.spark.{SparkContext, SparkConf}
 import org.rogach.scallop.ScallopConf
 
-import scala.io.Source
-
 class Conf3(args: Seq[String]) extends ScallopConf(args) {
   mainOptions = Seq(input, output, model, method)
   val input = opt[String](descr = "input file", required = true)
@@ -18,8 +16,9 @@ class Conf3(args: Seq[String]) extends ScallopConf(args) {
 object ApplyEnsembleSpamClassifier {
   val log = Logger.getLogger(getClass().getName())
 
-  // Convention that is used -> (x, y, britney)
-  var w = scala.collection.mutable.Map[Int, (Double, Double, Double)]().withDefaultValue((Double.NaN, Double.NaN, Double.NaN))
+  var wX = scala.collection.mutable.Map[Int, Double]()
+  var wY = scala.collection.mutable.Map[Int, Double]()
+  var wBritney = scala.collection.mutable.Map[Int, Double]()
 
   def main(argv: Array[String]) {
     val args = new Conf3(argv)
@@ -37,50 +36,44 @@ object ApplyEnsembleSpamClassifier {
 
     val textFile = sc.textFile(args.input())
 
-    // This one doesn't work
-    //    val modelData = modelFile.map(line => {
-    //      val stringArray = line.split(",")
-    //      val feature = stringArray(0).drop(1).toInt
-    //      val weight = stringArray(1).dropRight(1).toDouble
-    //      // Getting stuck at the next line
-    //      w.put(feature, weight)
-    //    })
-    //    val test = sc.broadcast(w)
-    //    val test = modelData.collectAsMap()
-
     // process file x
-    for (line <- Source.fromFile(args.model() + "/part-00000").getLines()) {
+    val modelXFile = sc.textFile(args.model() + "/part-00000")
+
+    val modelXData = modelXFile.map(line => {
       val stringArray = line.split(",")
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
-      w.put(feature, (weight, Double.NaN, Double.NaN))
-    }
+      (feature, weight)
+    })
+
+    val testX = modelXData.collect.toMap
+    val brvalX = sc.broadcast(testX)
 
     // process file y
-    for (line <- Source.fromFile(args.model() + "/part-00001").getLines()) {
+    val modelYFile = sc.textFile(args.model() + "/part-00001")
+
+    val modelYData = modelYFile.map(line => {
       val stringArray = line.split(",")
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
-      var xVal = Double.NaN
-      if (w.contains(feature)) xVal = w(feature)._1
-      w.put(feature, (xVal, weight, Double.NaN))
-    }
+      (feature, weight)
+    })
+
+    val testY = modelYData.collect.toMap
+    val brvalY = sc.broadcast(testY)
 
     // process file britney
-    for (line <- Source.fromFile(args.model() + "/part-00002").getLines()) {
+    val modelBritneyFile = sc.textFile(args.model() + "/part-00002")
+
+    val modelBritneyData = modelBritneyFile.map(line => {
       val stringArray = line.split(",")
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
-      var xVal = Double.NaN
-      var yVal = Double.NaN
-      if (w.contains(feature)) {
-        xVal = w(feature)._1
-        yVal = w(feature)._2
-      }
-      w.put(feature, (xVal, yVal, weight))
-    }
+      (feature, weight)
+    })
 
-    val test = sc.broadcast(w)
+    val testBritney = modelBritneyData.collect.toMap
+    val brvalBritney = sc.broadcast(testBritney)
 
     val methodType = args.method()
 
@@ -93,23 +86,20 @@ object ApplyEnsembleSpamClassifier {
       var scoreY = 0d
       var scoreBritney = 0d
       var finalScore = 0d
-      var finalLabel = ""
 
       for (x <- 2 until trainingInstanceArray.length) {
         val feature = trainingInstanceArray(x).toInt
-        if (test.value.contains(feature)) {
-          // x
-          if (!test.value(feature)._1.isNaN) {
-            scoreX += test.value(feature)._1
-          }
-          // y
-          if (!test.value(feature)._2.isNaN) {
-            scoreY += test.value(feature)._2
-          }
-          // britney
-          if (!test.value(feature)._3.isNaN) {
-            scoreBritney += test.value(feature)._3
-          }
+        // x
+        if (brvalX.value.contains(feature)) {
+          scoreX += brvalX.value(feature)
+        }
+        // y
+        if (brvalY.value.contains(feature)) {
+          scoreY += brvalY.value(feature)
+        }
+        // Britney
+        if (brvalBritney.value.contains(feature)) {
+          scoreBritney += brvalBritney.value(feature)
         }
       }
 
