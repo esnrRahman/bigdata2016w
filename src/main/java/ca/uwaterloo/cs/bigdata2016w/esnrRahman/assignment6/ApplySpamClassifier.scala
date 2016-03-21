@@ -36,13 +36,10 @@ object ApplySpamClassifier {
 
     val modelFile = sc.textFile(args.model() + "/part-00000")
 
-
-    // This one doesn't work
     val modelData = modelFile.map(line => {
       val stringArray = line.split(",")
       val feature = stringArray(0).drop(1).toInt
       val weight = stringArray(1).dropRight(1).toDouble
-      // Getting stuck at the next line
       (feature, weight)
     })
 
