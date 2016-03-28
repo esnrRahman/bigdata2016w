@@ -75,7 +75,19 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
 
 		Set<Integer> set = stack.pop();
 
-		for (Integer i : set) {
+//		// Debugging
+//		LOG.info("EHSAN 1 -> " + stack.size());
+//		LOG.info("EHSAN 2 -> " + set.size());
+//
+//		for (Integer i : set) {
+//			LOG.info("EHSAN 3 -> " + i);
+//		}
+//
+//		for (Set<Integer> i : stack) {
+//			LOG.info("EHSAN 4 -> " + i);
+//		}
+
+			for (Integer i : set) {
 			String line = fetchLine(i);
 			System.out.println(i + "\t" + line);
 		}
@@ -120,7 +132,10 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
 	private Set<Integer> fetchDocumentSet(String term) throws IOException {
 		Set<Integer> set = new TreeSet<Integer>();
 
+//		LOG.info("EHSAN 1");
+
 		for (PairOfInts pair : fetchPostings(term)) {
+//			LOG.info("EHSAN 2");
 			set.add(pair.getLeftElement());
 		}
 
@@ -138,6 +153,8 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
 //		int count = Bytes.toInt(result.getValue(HBaseWordCount.CF, HBaseWordCount.COUNT));
 		qualifierValueMap = result.getFamilyMap("p".getBytes());
 
+//		LOG.info("EHSAN 4 -> " + qualifierValueMap.size());
+
 //		Text key = new Text();
 //		BytesWritable value =
 //						new BytesWritable();
@@ -154,6 +171,7 @@ public class BooleanRetrievalHBase extends Configured implements Tool {
 //		//df.set(value.get());
 		for(Map.Entry<byte[], byte[]> entry: qualifierValueMap.entrySet()) {
 			postings.add(new PairOfInts(Bytes.toInt(entry.getKey()), Bytes.toInt(entry.getValue())));
+//			LOG.info("EHSAN 5: docid -> " + Bytes.toInt(entry.getKey()) + " tf ->" + Bytes.toInt(entry.getValue()));
 		}
 		return postings;
 	}
