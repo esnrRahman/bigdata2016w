@@ -1,6 +1,7 @@
 package ca.uwaterloo.cs.bigdata2016w.esnrRahman.assignment7;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -119,20 +120,22 @@ public class BuildInvertedIndexHBase extends Configured implements Tool {
 			Iterator<IntWritable> iter = values.iterator();
 
 			String term = keyPair.getLeftElement();
-			byte[] docId = String.valueOf(keyPair.getRightElement()).getBytes();
+			byte[] docId = ByteBuffer.allocate(4).putInt(keyPair.getRightElement()).array();
 
 			// Row key is the term itself
 			Put put = new Put(Bytes.toBytes(keyPair.getLeftElement()));
 //			int df = 0;
 
+			int totalTF = 0;
 			while (iter.hasNext()) {
 //				df++;
 				// Single column family
 				// Each column multiplier is a docid
 				// Value is the term frequency
 				// Signature of add is -> Put add(byte[] family, byte[] qualifier, byte[] value)
-				put.add(CF, docId, Bytes.toBytes(iter.next().get()));
+				totalTF += iter.next().get();
 			}
+			put.add(CF, docId, Bytes.toBytes(totalTF));
 //			DF.set(df);
 			context.write(null, put);
 
