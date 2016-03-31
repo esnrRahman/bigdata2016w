@@ -38,5 +38,6 @@ So this might've messed it up as this code allocates waaayyy more than 4 bytes. 
 The script tries to run shakespeare with my username first. It gets stuck because of the issue stated above. But right now, whatever table gets created can get safely deleted. So my suggestion is to run shakespeare with a name other than "esnrRahman". And wiki can be normally run. Apologies for the inconvenience and messing up the hbase table. I manually ran everything multiple times and deleted from the hbase terminal to assure myself that the code is working.
 
 I have uploaded a script so that it runs in altiscale. You can use that to do your tests.
+P.S. - Please change the permissions first
 </p>
 

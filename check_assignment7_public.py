@@ -16,7 +16,7 @@ import argparse
 
 # add prefix 'a' if github-username starts from a numeric character
 def convertusername(u):
-  return re.sub(r'^(\d+.*)',r'a\1',erahman)
+  return re.sub(r'^(\d+.*)',r'a\1',u)
 
 def check_a3(username,reducers):
     """Run assignment7 in Altiscale environment"""
