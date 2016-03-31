@@ -73,3 +73,15 @@
 * Therefore avg is: 17.19
 
 </ol>
+
+Marks:
+Compilation: 4/4
+TrainSpamClassifier: 14/15
+ApplySpamClassifier: 5/5
+ApplyEnsembleClassifier: 6/6
+Shuffle implementation: 5/5
+Question Answers: 15/15
+Runs on Altiscale: 10/10
+Total: 59/60
+
+- Model does not need to be global when training and a more complex application that makes use of it would potentially be problematic
