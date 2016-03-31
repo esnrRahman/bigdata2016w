@@ -92,28 +92,8 @@ public class BuildInvertedIndexHBase extends Configured implements Tool {
 		}
 	}
 
-//	public static class MyTableReducer extends TableReducer<PairOfStringInt, IntWritable,
-//					ImmutableBytesWritable> {
-//
-//		public void reduce(PairOfStringInt keyPair, Iterable<IntWritable> values, Context context)
-//						throws IOException, InterruptedException {
-//			int sum = 0;
-//			for (IntWritable val : values) {
-//				sum += val.get();
-//			}
-//			Put put = new Put(Bytes.toBytes(key.toString()));
-//			put.add(CF, COUNT, Bytes.toBytes(sum));
-//
-//			context.write(null, put);
-//		}
-//	}
-
-
-	// keyPair -> (term, docId)
-	// values -> Array of tfs
 	public static class MyTableReducer extends
 					TableReducer<PairOfStringInt, IntWritable, ImmutableBytesWritable> {
-//		private final static IntWritable DF = new IntWritable();
 
 		public void reduce(PairOfStringInt keyPair, Iterable<IntWritable> values, Context context)
 						throws IOException, InterruptedException {
@@ -122,29 +102,15 @@ public class BuildInvertedIndexHBase extends Configured implements Tool {
 			String term = keyPair.getLeftElement();
 			byte[] docId = ByteBuffer.allocate(4).putInt(keyPair.getRightElement()).array();
 
-			// Row key is the term itself
 			Put put = new Put(Bytes.toBytes(keyPair.getLeftElement()));
-//			int df = 0;
 
 			int totalTF = 0;
 			while (iter.hasNext()) {
-//				df++;
-				// Single column family
-				// Each column multiplier is a docid
-				// Value is the term frequency
-				// Signature of add is -> Put add(byte[] family, byte[] qualifier, byte[] value)
 				totalTF += iter.next().get();
 			}
 			put.add(CF, docId, Bytes.toBytes(totalTF));
-//			DF.set(df);
 			context.write(null, put);
-
 		}
-
-		// Compressed in the form (term, ByteStream)
-		// ByteStream contains (df, gappedDocId, tf)
-		// Should be (df, docId, tf)
-
 	}
 
 	private BuildInvertedIndexHBase() {
